@@ -240,8 +240,15 @@ class AbstractBatchQueue(Collection, ABC):
         """Get batch from queue or directly from a ``Sampler`` through
         ``sample_batch``."""
         if self.mode == 'eager' or self.queue_cap == 0 or self.queue_len == 0:
-            return self.sample_batch()
-        return self.queue.dequeue()
+            samples = self.sample_batch()
+        else:
+            samples = self.queue.dequeue()
+        if self.sample_shape[2] == 1:
+            if isinstance(samples, (list, tuple)):
+                samples = tuple(s[..., 0, :] for s in samples)
+            else:
+                samples = samples[..., 0, :]
+        return self.post_proc(samples)
 
     @property
     def running(self):
@@ -275,7 +282,6 @@ class AbstractBatchQueue(Collection, ABC):
         log_time = time.time()
         while self.running:
             needed = max(self.queue_cap - self.queue_len, 0)
-            needed = min(self.max_workers, needed)
             if needed > 0:
                 batches = self.sample_batches(n_batches=needed)
                 if needed > 1 and self.max_workers > 1:
@@ -300,22 +306,8 @@ class AbstractBatchQueue(Collection, ABC):
             Batch object with batch.low_res and batch.high_res attributes
         """
         if self._batch_count < self.n_batches:
-            self.timer.start()
-            samples = self.get_batch()
-            if self.sample_shape[2] == 1:
-                if isinstance(samples, (list, tuple)):
-                    samples = tuple(s[..., 0, :] for s in samples)
-                else:
-                    samples = samples[..., 0, :]
-            batch = self.post_proc(samples)
-            self.timer.stop()
+            batch = self.timer(self.get_batch, log=self.verbose)()
             self._batch_count += 1
-            if self.verbose:
-                logger.debug(
-                    'Batch step %s finished in %s.',
-                    self._batch_count,
-                    self.timer.elapsed_str,
-                )
         else:
             raise StopIteration
         return batch

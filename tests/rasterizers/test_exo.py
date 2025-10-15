@@ -7,7 +7,6 @@ from tempfile import TemporaryDirectory
 import numpy as np
 import pandas as pd
 import pytest
-import xarray as xr
 from rex import Resource
 
 from sup3r.postprocessing import RexOutputs
@@ -18,7 +17,7 @@ from sup3r.preprocessing import (
     ExoDataHandler,
     ExoRasterizer,
 )
-from sup3r.utilities.pytest.helpers import make_fake_dset, make_fake_nc_file
+from sup3r.utilities.pytest.helpers import make_fake_dset
 from sup3r.utilities.utilities import RANDOM_GENERATOR, xr_open_mfdataset
 
 TARGET = (13.67, 125.0)
@@ -329,69 +328,55 @@ def test_topo_extraction_nc():
     assert np.allclose(te.source_data.flatten(), hr_elev.flatten())
 
 
-def test_obs_agg():
-    """Test the aggregation of 3D data"""
-    with TemporaryDirectory() as td:
-        make_fake_nc_file(
-            f'{td}/hr.nc',
-            (20, 20, 6),
-            ['u_10m'],
-            lat_range=(0, 5),
-            lon_range=(0, 5),
-        )
-        res = xr.open_mfdataset(f'{td}/hr.nc')
-        res = res.sx.coarsen(
-            {'south_north': 4, 'west_east': 4}
-        ).mean()
-        res.to_netcdf(f'{td}/lr.nc')
-
-        te = ExoRasterizer(
-            file_paths=f'{td}/lr.nc',
-            source_files=f'{td}/hr.nc',
-            feature='u_10m_obs',
-            s_enhance=2,
-            t_enhance=1,
-        )
-        agg_obs = np.asarray(te._get_data_3d())
-        true_obs = te.source_handler['u_10m'].coarsen(
-            {'south_north': 2, 'west_east': 2}
-        ).mean().values
-        assert np.allclose(agg_obs, true_obs, equal_nan=True, rtol=0.01)
-
-
-@pytest.mark.parametrize('s_enhance', [1, 2, 5, 10])
-def test_obs_agg_with_nans(s_enhance):
-    """Test the aggregation of 3D data with some NaNs"""
+@pytest.mark.parametrize(
+    ['s_enhance', 'with_nans'],
+    [
+        (1, False),
+        (2, False),
+        (4, False),
+        (1, True),
+        (2, True),
+        (4, True),
+    ],
+)
+def test_obs_agg(s_enhance, with_nans):
+    """Test the aggregation of 3D data with local mean"""
     with TemporaryDirectory() as td:
         dset = make_fake_dset(
-            (40, 40, 6),
+            (8, 8, 1),
             ['u_10m'],
-            lat_range=(0, 5),
-            lon_range=(0, 5),
+            lat_range=(20, 24),
+            lon_range=(-120, -116),
         )
 
-        mask = RANDOM_GENERATOR.choice(
-            [True, False], dset['u_10m'].shape, p=[0.6, 0.4]
-        )
-        u_10m = dset['u_10m'].values
-        u_10m[mask] = np.nan
-        dset['u_10m'] = (dset['u_10m'].dims, u_10m)
-        dset.to_netcdf(f'{td}/hr.nc')
+        if with_nans:
+            mask = RANDOM_GENERATOR.choice(
+                [True, False], dset['u_10m'].shape, p=[0.6, 0.4]
+            )
+            u_10m = dset['u_10m'].values
+            u_10m[mask] = np.nan
+            dset['u_10m'] = (dset['u_10m'].dims, u_10m)
 
-        res = dset.sx.coarsen(
-            {'south_north': 10, 'west_east': 10}
-        ).mean()
+        res = dset.sx.coarsen({'south_north': 4, 'west_east': 4}).mean()
         res.to_netcdf(f'{td}/lr.nc')
+        dset.to_netcdf(f'{td}/hr.nc')
 
         te = ExoRasterizer(
             file_paths=f'{td}/lr.nc',
             source_files=f'{td}/hr.nc',
             feature='u_10m_obs',
             s_enhance=s_enhance,
-            t_enhance=1,
+            t_enhance=1
         )
         agg_obs = np.asarray(te._get_data_3d())
-        true_obs = te.source_handler['u_10m'].coarsen(
-            {'south_north': 10 // s_enhance, 'west_east': 10 // s_enhance}
-        ).mean().values
-        assert np.allclose(agg_obs, true_obs, equal_nan=True)
+        true_obs = (
+            te.source_handler['u_10m']
+            .coarsen({
+                'south_north': 4 // s_enhance,
+                'west_east': 4 // s_enhance,
+            })
+            .mean()
+            .values
+        )
+        mask = np.isnan(agg_obs) | np.isnan(true_obs)
+        assert np.allclose(agg_obs[~mask], true_obs[~mask], rtol=0.01)

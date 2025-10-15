@@ -109,13 +109,12 @@ class TensorboardMixIn:
         entry: dict
             Dictionary of values to write to tensorboard log file
         """
-        if self._tb_writer is not None:
-            with self._tb_writer.as_default():
-                for name, value in entry.items():
-                    if isinstance(value, str):
-                        tf.summary.text(name, value, self.total_batches)
-                    else:
-                        tf.summary.scalar(name, value, self.total_batches)
+        with self._tb_writer.as_default():
+            for name, value in entry.items():
+                if isinstance(value, str):
+                    tf.summary.text(name, value, self.total_batches)
+                else:
+                    tf.summary.scalar(name, value, self.total_batches)
 
     def profile_to_tensorboard(self, name):
         """Write profile data to tensorboard log file.
