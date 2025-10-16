@@ -8,7 +8,7 @@ import logging
 import os
 from abc import ABC
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import ClassVar, Optional, Union
 from warnings import warn
 
 import dask.array as da
@@ -109,8 +109,6 @@ class BaseExoRasterizer(ABC):
     max_workers : int
         Number of workers used for writing data to cache files. Gets passed to
         ``Cacher._write_single.``
-    verbose : bool
-        Whether to log output as each chunk is written to cache file.
     """
 
     feature: Optional[str] = None
@@ -127,11 +125,10 @@ class BaseExoRasterizer(ABC):
     fill_nans: bool = True
     scale_factor: float = 1.0
     max_workers: int = 1
-    verbose: bool = False
 
     # These sometimes have a time dimension but we don't need the time in
     # the cache file
-    STATIC_FEATURES = ('topography', 'srl')
+    STATIC_FEATURES: ClassVar = ('topography', 'srl')
 
     @log_args
     def __post_init__(self):
@@ -350,7 +347,6 @@ class BaseExoRasterizer(ABC):
                 data=data,
                 max_workers=self.max_workers,
                 chunks=self.chunks,
-                verbose=self.verbose,
             )
 
         return Sup3rX(data.chunk(self.chunks))
