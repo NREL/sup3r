@@ -221,7 +221,7 @@ Option 2: Clone repo (recommended for developers)
     4.1 Install ``sup3r`` and its dependencies by running: ``pip install .`` (or ``pip install -e .`` for editable install)
     4.2 Run this if you want to train models on GPUs: ``pip install tensorflow[and-cuda]``
 5. Alternatively, with `pixi <https://pixi.sh/latest/>`_:
-   ``pixi install .`` (or ``pixi install -e .`` for editable install)
+   ``pixi install``
 6. *Optional*: Set up the pre-commit hooks with ``pip install pre-commit`` or ``pixi add pre-commit`` and ``pre-commit install``
 
 Recommended Citation
