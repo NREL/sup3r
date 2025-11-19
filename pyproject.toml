@@ -15,13 +15,12 @@ authors = [
   {name = "Brandon Benton", email = "brandon.benton@nrel.gov"},
 ]
 license = {text = "BSD-3-Clause"}
-requires-python = ">= 3.8"
+requires-python = ">= 3.9"
 classifiers=[
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
   "License :: OSI Approved :: BSD License",
   "Natural Language :: English",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -99,7 +98,7 @@ repository = "https://github.com/NREL/sup3r"
 line-length = 79
 indent-width = 4
 
-target-version = "py38"
+target-version = "py39"
 exclude = [
   "CSV",
   "ref.*?py",
