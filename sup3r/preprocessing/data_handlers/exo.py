@@ -63,7 +63,6 @@ class ExoData(dict):
 
         Parameters
         ----------
-
         steps : dict
             Dictionary with feature keys each with entries describing whether
             features should be combined at input, a mid network layer, or with
