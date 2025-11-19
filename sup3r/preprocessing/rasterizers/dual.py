@@ -2,7 +2,7 @@
 datasets"""
 
 import logging
-from typing import Dict, Tuple, Union
+from typing import Union
 from warnings import warn
 
 import numpy as np
@@ -39,7 +39,7 @@ class DualRasterizer(Container):
     def __init__(
         self,
         data: Union[
-            Sup3rDataset, Tuple[xr.Dataset, xr.Dataset], Dict[str, xr.Dataset]
+            Sup3rDataset, tuple[xr.Dataset, xr.Dataset], dict[str, xr.Dataset]
         ],
         regrid_workers=1,
         regrid_lr=True,
@@ -54,8 +54,8 @@ class DualRasterizer(Container):
 
         Parameters
         ----------
-        data : Sup3rDataset | Tuple[xr.Dataset, xr.Dataset] |
-               Dict[str, xr.Dataset]
+        data : Sup3rDataset | tuple[xr.Dataset, xr.Dataset] |
+               dict[str, xr.Dataset]
             A tuple of xr.Dataset instances. The first must be low-res
             and the second must be high-res data
         regrid_workers : int | None
@@ -179,9 +179,10 @@ class DualRasterizer(Container):
                 'Updating self.hr_data with new shape: '
                 f'{self.hr_required_shape[:3]}'
             )
-            self.hr_data = self.hr_data.update_ds(
-                {**hr_coords_new, **hr_data_new}
-            )
+            self.hr_data = self.hr_data.update_ds({
+                **hr_coords_new,
+                **hr_data_new,
+            })
 
     def get_regridder(self):
         """Get regridder object"""
@@ -215,9 +216,10 @@ class DualRasterizer(Container):
                 ],
             }
             logger.info('Updating self.lr_data with regridded data.')
-            self.lr_data = self.lr_data.update_ds(
-                {**lr_coords_new, **lr_data_new}
-            )
+            self.lr_data = self.lr_data.update_ds({
+                **lr_coords_new,
+                **lr_data_new,
+            })
 
     def check_regridded_lr_data(self):
         """Check for NaNs after regridding and do NN fill if needed."""
@@ -227,7 +229,7 @@ class DualRasterizer(Container):
         for f in self.lr_data.features:
             nan_perc = qa_info[f]['nan_perc']
             if nan_perc > 0:
-                msg = f'{f} data has {nan_perc:.3f}% NaN ' 'values!'
+                msg = f'{f} data has {nan_perc:.3f}% NaN values!'
                 if nan_perc < 10:
                     fill_feats.append(f)
                     logger.warning(msg)

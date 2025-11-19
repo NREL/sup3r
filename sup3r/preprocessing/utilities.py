@@ -7,7 +7,7 @@ from glob import glob
 from importlib import import_module
 from inspect import Parameter, Signature, getfullargspec, signature
 from pathlib import Path
-from typing import ClassVar, Optional, Tuple, Union
+from typing import ClassVar, Optional, Union
 from warnings import warn
 
 import numpy as np
@@ -123,8 +123,7 @@ def log_args(func):
         args_dict = _get_args_dict(thing, fun, *args, **kwargs)
         name = thing.__class__.__name__
         logger.info(
-            f'Initialized {name} with:\n'
-            f'{pprint.pformat(args_dict, indent=2)}'
+            f'Initialized {name} with:\n{pprint.pformat(args_dict, indent=2)}'
         )
         logger.debug(_mem_check())
 
@@ -537,7 +536,7 @@ def lowered(features):
     return feats
 
 
-def ordered_dims(dims: Tuple):
+def ordered_dims(dims: tuple):
     """Return the order of dims that follows the ordering of Dimension.order()
     for the common dim names. e.g dims = ('time', 'south_north', 'dummy',
     'west_east') will return ('south_north', 'west_east', 'time',

@@ -2,7 +2,7 @@
 ``Container`` objects."""
 
 import logging
-from typing import Dict, Union
+from typing import Union
 from warnings import warn
 
 import dask.array as da
@@ -267,7 +267,7 @@ class Sup3rX:
 
         Parameters
         ----------
-        new_dset : Dict[str, dask.array]
+        new_dset : dict[str, dask.array]
             Can contain any existing or new variable / coordinate as long as
             they all have a consistent shape.
 
@@ -404,7 +404,7 @@ class Sup3rX:
 
         Parameters
         ----------
-        vals : Dict[Str, Union]
+        vals : dict[Str, Union]
             Dictionary of feature names and arrays to use for setting feature
             data. When arrays are >2 dimensions xarray needs explicit dimension
             info, so we need to add these if not provided.
@@ -442,7 +442,7 @@ class Sup3rX:
         return new_vals
 
     def assign(
-        self, vals: Dict[str, Union[Union[np.ndarray, da.core.Array], tuple]]
+        self, vals: dict[str, Union[Union[np.ndarray, da.core.Array], tuple]]
     ):
         """Override xarray assign and assign_coords methods to enable update
         without explicitly providing dimensions if variable already exists.
@@ -590,8 +590,10 @@ class Sup3rX:
             and len(self._ds[Dimension.LONGITUDE].dims) == 2
         )
         if not lat_lon_2d:
-            msg = ('lat/lon data is not 2D. Either the regular grid has '
-                   'already been set or the data is non-regular')
+            msg = (
+                'lat/lon data is not 2D. Either the regular grid has '
+                'already been set or the data is non-regular'
+            )
             logger.warning(msg)
             warn(msg)
             return self

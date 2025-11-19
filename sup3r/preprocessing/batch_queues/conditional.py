@@ -2,7 +2,7 @@
 
 import logging
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
 
@@ -24,9 +24,9 @@ class ConditionalBatchQueue(SingleBatchQueue):
 
     def __init__(
         self,
-        samplers: Union[List['Sampler'], List['DualSampler']],
+        samplers: Union[list['Sampler'], list['DualSampler']],
         time_enhance_mode: str = 'constant',
-        lower_models: Optional[Dict[int, Sup3rCondMom]] = None,
+        lower_models: Optional[dict[int, Sup3rCondMom]] = None,
         s_padding: int = 0,
         t_padding: int = 0,
         end_t_padding: bool = False,
@@ -35,7 +35,7 @@ class ConditionalBatchQueue(SingleBatchQueue):
         """
         Parameters
         ----------
-        samplers : List[Sampler] | List[DualSampler]
+        samplers : list[Sampler] | list[DualSampler]
             List of samplers to use for queue.
         time_enhance_mode : str
             [constant, linear]
@@ -45,7 +45,7 @@ class ConditionalBatchQueue(SingleBatchQueue):
             low-res temporal data is constant between landmarks.  linear will
             linearly interpolate between landmarks to generate the low-res data
             to remove from the high-res.
-        lower_models : Dict[int, Sup3rCondMom] | None
+        lower_models : dict[int, Sup3rCondMom] | None
             Dictionary of models that predict lower moments. For example, if
             this queue is part of a handler to estimate the 3rd moment
             `lower_models` could include models that estimate the 1st and 2nd
@@ -134,7 +134,7 @@ class ConditionalBatchQueue(SingleBatchQueue):
 
         Parameters
         ----------
-        samples : Tuple[Union[np.ndarray, da.core.Array], ...]
+        samples : tuple[Union[np.ndarray, da.core.Array], ...]
             Tuple of low_res, high_res. Each array is:
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
@@ -163,9 +163,7 @@ class ConditionalBatchQueue(SingleBatchQueue):
         lr, hr = self.transform(samples, **self.transform_kwargs)
         mask = self.make_mask(high_res=hr)
         output = self.make_output(samples=(lr, hr))
-        return DsetTuple(
-            low_res=lr, high_res=hr, output=output, mask=mask
-        )
+        return DsetTuple(low_res=lr, high_res=hr, output=output, mask=mask)
 
 
 class QueueMom1(ConditionalBatchQueue):

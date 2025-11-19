@@ -7,7 +7,6 @@ though.
 
 import logging
 from functools import cached_property
-from typing import Dict, Tuple
 from warnings import warn
 
 import dask.array as da
@@ -68,7 +67,7 @@ class LoaderH5(BaseLoader):
 
     def _get_coords(self, dims):
         """Get coords dict for xr.Dataset construction."""
-        coords: Dict[str, Tuple] = {}
+        coords: dict[str, tuple] = {}
         if not self._time_independent:
             coords[Dimension.TIME] = self._res['time_index']
         coord_base = (

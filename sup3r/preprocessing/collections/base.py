@@ -7,7 +7,7 @@ collections of data. Consider migrating once datatree has been fully
 integrated into xarray (in progress as of 8/8/2024)
 """
 
-from typing import TYPE_CHECKING, List, Union
+from typing import TYPE_CHECKING, Union
 
 import numpy as np
 
@@ -28,15 +28,15 @@ class Collection(Container):
     def __init__(
         self,
         containers: Union[
-            List['Container'],
-            List['Sampler'],
-            List['DualSampler'],
+            list['Container'],
+            list['Sampler'],
+            list['DualSampler'],
         ],
     ):
         super().__init__()
         self.data = tuple(c.data for c in containers)
         self.containers = containers
-        self._features: List = []
+        self._features: list = []
 
     @property
     def features(self):

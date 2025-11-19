@@ -2,7 +2,7 @@
 which are updated during training based on performance of the model."""
 
 import logging
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
 import dask.array as da
 import numpy as np
@@ -29,12 +29,12 @@ class SamplerDC(Sampler):
         data: Union[Sup3rX, Sup3rDataset],
         sample_shape: Optional[tuple] = None,
         batch_size: int = 16,
-        feature_sets: Optional[Dict] = None,
+        feature_sets: Optional[dict] = None,
         spatial_weights: Optional[
-            Union[np.ndarray, da.core.Array, List]
+            Union[np.ndarray, da.core.Array, list]
         ] = None,
         temporal_weights: Optional[
-            Union[np.ndarray, da.core.Array, List]
+            Union[np.ndarray, da.core.Array, list]
         ] = None,
     ):
         """

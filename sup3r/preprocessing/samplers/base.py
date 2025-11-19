@@ -4,7 +4,7 @@ additional information about how different features are used by models."""
 
 import logging
 from fnmatch import fnmatch
-from typing import Dict, Optional, Tuple
+from typing import Optional
 from warnings import warn
 
 import numpy as np
@@ -28,7 +28,7 @@ class Sampler(Container):
         data,
         sample_shape: Optional[tuple] = None,
         batch_size: int = 16,
-        feature_sets: Optional[Dict] = None,
+        feature_sets: Optional[dict] = None,
     ):
         """
         Parameters
@@ -135,7 +135,7 @@ class Sampler(Container):
             warn(msg)
 
     @property
-    def sample_shape(self) -> Tuple:
+    def sample_shape(self) -> tuple:
         """Shape of the data sample to select when ``__next__()`` is called."""
         return self._sample_shape
 
@@ -153,7 +153,7 @@ class Sampler(Container):
             self._sample_shape = (*self._sample_shape, 1)
 
     @property
-    def hr_sample_shape(self) -> Tuple:
+    def hr_sample_shape(self) -> tuple:
         """Shape of the data sample to select when `__next__()` is called. Same
         as sample_shape"""
         return self._sample_shape
@@ -208,14 +208,14 @@ class Sampler(Container):
 
         Parameters
         ----------
-        samples : Tuple[List[np.ndarray | da.core.Array], ...] |
-                  List[np.ndarray | da.core.Array]
+        samples : tuple[list[np.ndarray | da.core.Array], ...] |
+                  list[np.ndarray | da.core.Array]
             Each list has length = batch_size and each array has shape:
             (samp_shape[0], samp_shape[1], samp_shape[2], n_feats)
 
         Returns
         -------
-        batch: Tuple[np.ndarray, np.ndarray] | np.ndarray
+        batch: tuple[np.ndarray, np.ndarray] | np.ndarray
             Stacked sample array(s), each with shape:
             (batch_size, samp_shape[0], samp_shape[1], samp_shape[2], n_feats)
         """

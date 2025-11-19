@@ -4,7 +4,7 @@ rasterized features."""
 import logging
 import re
 from inspect import signature
-from typing import Type, Union
+from typing import Union
 from warnings import warn
 
 import dask.array as da
@@ -80,7 +80,7 @@ class BaseDeriver(Container):
             else self.data[features]
         )
 
-    def _check_registry(self, feature) -> Union[Type[DerivedFeature], None]:
+    def _check_registry(self, feature) -> Union[type[DerivedFeature], None]:
         """Check if feature or matching pattern is in the feature registry
         keys. Return the corresponding value if found."""
         if feature.lower() in self.FEATURE_REGISTRY:

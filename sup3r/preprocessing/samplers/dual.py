@@ -3,7 +3,7 @@ low and high resolution data. These paired datasets are contained in a
 Sup3rDataset object."""
 
 import logging
-from typing import Dict, Optional
+from typing import Optional
 
 from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.utilities import lowered
@@ -28,7 +28,7 @@ class DualSampler(Sampler):
         batch_size: int = 16,
         s_enhance: int = 1,
         t_enhance: int = 1,
-        feature_sets: Optional[Dict] = None,
+        feature_sets: Optional[dict] = None,
     ):
         """
         Parameters

@@ -173,7 +173,7 @@ class ExoData(dict):
 
         Returns
         -------
-        split_list : List[ExoData]
+        split_list : list[ExoData]
             List of ``ExoData`` objects coming from the split of ``self``,
             according to ``split_steps``
         """

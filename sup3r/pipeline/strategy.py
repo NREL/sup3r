@@ -8,7 +8,7 @@ import pathlib
 import pprint
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Dict, Optional, Tuple, Union
+from typing import Optional, Union
 from warnings import warn
 
 import dask.array as da
@@ -40,14 +40,14 @@ class ForwardPassChunk:
     through the generator."""
 
     input_data: Union[np.ndarray, da.core.Array]
-    exo_data: Dict
+    exo_data: dict
     hr_crop_slice: slice
     lr_pad_slice: slice
     hr_lat_lon: Union[np.ndarray, da.core.Array]
     hr_times: pd.DatetimeIndex
     gids: Union[np.ndarray, da.core.Array]
     out_file: str
-    pad_width: Tuple[tuple, tuple, tuple]
+    pad_width: tuple[tuple, tuple, tuple]
     index: int
 
     def __post_init__(self):
