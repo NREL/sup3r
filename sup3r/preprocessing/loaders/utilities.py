@@ -1,8 +1,7 @@
 """Utilities used by Loaders."""
 
-import pandas as pd
-
 from sup3r.preprocessing.names import Dimension
+from sup3r.utilities.utilities import decode_str_times
 
 
 def standardize_names(data, standard_names):
@@ -30,9 +29,6 @@ def standardize_values(data):
     data[Dimension.LONGITUDE] = lons
 
     if Dimension.TIME in data.coords:
-        if isinstance(data[Dimension.TIME].values[0], bytes):
-            times = [t.decode('utf-8') for t in data[Dimension.TIME].values]
-            data[Dimension.TIME] = times
-        data[Dimension.TIME] = pd.to_datetime(data[Dimension.TIME])
+        data[Dimension.TIME] = decode_str_times(data[Dimension.TIME].values)
 
     return data

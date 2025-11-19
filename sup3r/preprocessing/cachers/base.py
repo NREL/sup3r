@@ -15,7 +15,12 @@ from rex.utilities.utilities import to_records_array
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import _lowered, _mem_check
-from sup3r.utilities.utilities import get_tmp_file, safe_cast, safe_serialize
+from sup3r.utilities.utilities import (
+    encode_str_times,
+    get_tmp_file,
+    safe_cast,
+    safe_serialize,
+)
 
 from .utilities import _check_for_cache
 
@@ -248,6 +253,7 @@ class Cacher(Container):
 
         chunksizes = tuple(d[0] for d in data_var.chunksizes.values())
         chunksizes = chunksizes if chunksizes else None
+
         return data_var, chunksizes
 
     @classmethod
@@ -267,9 +273,8 @@ class Cacher(Container):
         data_subset = data[features].copy()
 
         if Dimension.TIME in data_subset.coords:
-            data_subset[Dimension.TIME] = data_subset[Dimension.TIME].astype(
-                'int64'
-            )
+            times = encode_str_times(data_subset[Dimension.TIME].values)
+            data_subset = data_subset.assign({Dimension.TIME: times})
 
         return data_subset, features
 
@@ -307,6 +312,7 @@ class Cacher(Container):
         """Get dask array for dataset and chunksizes for H5 writing."""
         data_var, chunksizes = cls.get_chunksizes(dset, data, chunks)
         data_arr = data_var.data
+
         if not isinstance(data_arr, da.core.Array):
             data_arr = da.asarray(data_arr)
 
@@ -400,11 +406,6 @@ class Cacher(Container):
         features = features if isinstance(features, list) else [features]
 
         data_subset = data[features].copy()
-
-        if Dimension.TIME in data_subset.coords:
-            data_subset[Dimension.TIME] = data_subset[Dimension.TIME].astype(
-                'int64'
-            )
 
         coord_names = [
             crd for crd in data.coords if crd in Dimension.coords_4d()

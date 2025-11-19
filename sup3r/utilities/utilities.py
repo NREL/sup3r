@@ -26,6 +26,19 @@ RANDOM_GENERATOR = np.random.default_rng(seed=42)
 logger = logging.getLogger(__name__)
 
 
+def encode_str_times(times):
+    """Encode list of string times to byte strings for H5 storage."""
+    times = pd.DatetimeIndex(times).astype(str)
+    return [t.encode('utf-8') for t in times]
+
+
+def decode_str_times(times):
+    """Decode list of byte string times from H5 storage to normal strings."""
+    if isinstance(times[0], bytes):
+        times = [t.decode('utf-8') for t in times]
+    return pd.DatetimeIndex(times)
+
+
 def get_tmp_file(file):
     """Get a temporary file name based on the input file name."""
     if not isinstance(file, str):

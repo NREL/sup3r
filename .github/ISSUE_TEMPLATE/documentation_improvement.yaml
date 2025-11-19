@@ -1,0 +1,39 @@
+name: Documentation Improvement
+description: Report wrong, missing, or incomplete sup3r documentation
+type: Task
+labels: [documentation, enhancement]
+
+body:
+  - type: checkboxes
+    attributes:
+      label: sup3r version checks
+      options:
+        - label: >
+            I have checked that the issue still exists on the latest versions of the docs
+            on `main` [here](https://nrel.github.io/sup3r/)
+          required: true
+  - type: textarea
+    id: location
+    attributes:
+      label: Location of the documentation
+      description: >
+        Please provide the location of the documentation,
+        placeholder: https://nrel.github.io/sup3r/_autosummary/sup3r.cli.html#sup3r.cli
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Documentation problem
+      description: >
+        Please provide a description of what documentation you believe needs to be fixed/improved.
+    validations:
+      required: true
+  - type: textarea
+    id: suggested-fix
+    attributes:
+      label: Suggested fix for documentation
+      description: >
+        Please provide a suggested fix for the wrong, missing, or incomplete documentation.
+    validations:
+      required: true

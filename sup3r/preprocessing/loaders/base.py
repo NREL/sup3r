@@ -2,6 +2,7 @@
 always loaded lazily."""
 
 import copy
+import datetime
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime as dt
@@ -118,7 +119,7 @@ class BaseLoader(Container, ABC):
         attrs['global_attrs'] = getattr(self._res, 'global_attrs', [])
         attrs.update(getattr(self._res, 'attrs', {}))
         attrs['date_modified'] = attrs.get(
-            'date_modified', dt.utcnow().isoformat()
+            'date_modified', dt.now(datetime.timezone.utc).isoformat()
         )
         data.attrs.update(attrs)
         return data
