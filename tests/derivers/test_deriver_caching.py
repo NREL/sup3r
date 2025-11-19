@@ -58,7 +58,7 @@ def test_cacher_attrs():
 
 
 @pytest.mark.parametrize(
-    ['input_files', 'derive_features', 'ext', 'shape', 'target'],
+    ('input_files', 'derive_features', 'ext', 'shape', 'target'),
     [
         (
             pytest.FP_WTK,
