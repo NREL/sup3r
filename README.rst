@@ -213,15 +213,14 @@ Option 1: Install from PIP (recommended for analysts):
 Option 2: Clone repo (recommended for developers)
 -------------------------------------------------
 
-1. from home dir, ``git clone git@github.com:NREL/sup3r.git``
-2. ``cd`` into the repo cloned in 1.
+1. Run ``git clone git@github.com:NREL/sup3r.git``
+2. ``cd sup3r``.
 3. Make sure the branch is correct (install from main!)
 4. If you are using conda, create and activate a new environment:
    ``conda create --name sup3r python=3.11`` and ``conda activate sup3r``
     4.1 Install ``sup3r`` and its dependencies by running: ``pip install .`` (or ``pip install -e .`` for editable install)
     4.2 Run this if you want to train models on GPUs: ``pip install tensorflow[and-cuda]``
-5. Alternatively, with `pixi <https://pixi.sh/latest/>`_:
-   ``pixi install``
+5. Alternatively, run ``pixi install``
 6. *Optional*: Set up the pre-commit hooks with ``pip install pre-commit`` or ``pixi add pre-commit`` and ``pre-commit install``
 
 Recommended Citation
