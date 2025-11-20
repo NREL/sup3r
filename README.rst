@@ -193,9 +193,9 @@ To learn more about Sup3rUHI, check out the publication list below or the
 Installing sup3r
 ================
 
-NOTE: The installation instruction below assume that you have python installed
-on your machine and are using `conda <https://docs.conda.io/en/latest/index.html>`__
-as your package/environment manager.
+NOTE: The installation instructions below assume that you have python installed
+on your machine and are using either `conda <https://docs.conda.io/en/latest/index.html>`__
+or `pixi <https://pixi.sh/latest/>`_ as your package/environment manager.
 
 Option 1: Install from PIP (recommended for analysts):
 ------------------------------------------------------
@@ -213,19 +213,15 @@ Option 1: Install from PIP (recommended for analysts):
 Option 2: Clone repo (recommended for developers)
 -------------------------------------------------
 
-1. from home dir, ``git clone git@github.com:NREL/sup3r.git``
-
-2. Create ``sup3r`` environment and install package
-    1) Create a conda env with python: ``conda create --name sup3r python=3.11``
-    2) Run the command: ``conda activate sup3r``
-    3) ``cd`` into the repo cloned in 1.
-    4) Prior to running ``pip`` below, make sure the branch is correct (install
-       from main!)
-    5) Install ``sup3r`` and its dependencies by running:
-       ``pip install .`` (or ``pip install -e .`` if running a dev branch
-       or working on the source code)
-    6) Run this if you want to train models on GPUs: ``pip install tensorflow[and-cuda]``
-    7) *Optional*: Set up the pre-commit hooks with ``pip install pre-commit`` and ``pre-commit install``
+1. Run ``git clone git@github.com:NREL/sup3r.git``
+2. ``cd sup3r``.
+3. Make sure the branch is correct (install from main!)
+4. If you are using conda, create and activate a new environment:
+   ``conda create --name sup3r python=3.11`` and ``conda activate sup3r``
+    4.1 Install ``sup3r`` and its dependencies by running: ``pip install .`` (or ``pip install -e .`` for editable install)
+    4.2 Run this if you want to train models on GPUs: ``pip install tensorflow[and-cuda]``
+5. Alternatively, run ``pixi install``
+6. *Optional*: Set up the pre-commit hooks with ``pip install pre-commit`` or ``pixi add pre-commit`` and ``pre-commit install``
 
 Recommended Citation
 ====================
@@ -240,21 +236,21 @@ v0.2.3), 2025. https://doi.org/10.5281/zenodo.15586596
 Publications
 ============
 
-Estimating the impacts of increasing temperatures and the efficacy of climate 
+Estimating the impacts of increasing temperatures and the efficacy of climate
 adaptation strategies in urban microclimates with deep learning, *Urban Climate*
 (2025) https://doi.org/10.1016/j.uclim.2025.102603
 
 Second-Generation Downscaled Earth System Model Data using Generative Machine
 Learning, *Data in Brief* (2025) https://doi.org/10.1016/j.dib.2025.111774
 
-Super-Resolution for Renewable Energy Resource Data with Wind from Reanalysis 
+Super-Resolution for Renewable Energy Resource Data with Wind from Reanalysis
 Data and Application to Ukraine, *Energies* (2025) https://doi.org/10.3390/en18143769
 
 High-Resolution Meteorology With Climate Change Impacts From Global Climate
 Model Data Using Generative Machine Learning, *Nature Energy* (2024)
 https://doi.org/10.1038/s41560-024-01507-9
 
-Adversarial Super-Resolution of Climatological Wind and Solar Data, 
+Adversarial Super-Resolution of Climatological Wind and Solar Data,
 *Proceedings of the National Academy of Sciences* (2020)
 https://doi.org/10.1073/pnas.1918964117
 
@@ -264,8 +260,8 @@ Super-Resolution for Renewable Energy Resource Data with Climate Change Impacts
 (Sup3rCC). [Data set]. Open Energy Data Initiative (OEDI). National Renewable
 Energy Laboratory (NREL). https://doi.org/10.25984/1970814
 
-Super-Resolution for Renewable Energy Resource Data with Wind from Reanalysis 
-(Sup3rWind). [Data set]. Open Energy Data Initiative (OEDI). National Renewable 
+Super-Resolution for Renewable Energy Resource Data with Wind from Reanalysis
+(Sup3rWind). [Data set]. Open Energy Data Initiative (OEDI). National Renewable
 Energy Laboratory. https://data.openei.org/submissions/8455
 
 Super-Resolution for Renewable Resource Data and Urban Heat Islands (Sup3rUHI).

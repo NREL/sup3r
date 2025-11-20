@@ -11,7 +11,8 @@ integrated into xarray (in progress as of 8/8/2024)
 import logging
 import pprint
 from abc import ABCMeta
-from typing import Dict, Mapping, Tuple, Union
+from collections.abc import Mapping
+from typing import Union
 from warnings import warn
 
 import numpy as np
@@ -30,10 +31,10 @@ logger = logging.getLogger(__name__)
 def _get_class_info(namespace):
     sig_objs = namespace.get('_signature_objs', None)
     skips = namespace.get('_skip_params', None)
-    _sig = _doc = None
+    sig = doc = None
     if sig_objs:
-        _sig, _doc = composite_info(sig_objs, skip_params=skips)
-    return _sig, _doc
+        sig, doc = composite_info(sig_objs, skip_params=skips)
+    return sig, doc
 
 
 class Sup3rMeta(ABCMeta, type):
@@ -45,14 +46,14 @@ class Sup3rMeta(ABCMeta, type):
 
     def __new__(mcs, name, bases, namespace, **kwargs):  # noqa: N804
         """Define __name__ and __signature__"""
-        _sig, _doc = _get_class_info(namespace)
+        sig, doc = _get_class_info(namespace)
         name = namespace.get('__name__', name)
-        if _sig:
-            namespace['__signature__'] = _sig
-        if '__init__' in namespace and _sig:
-            namespace['__init__'].__signature__ = _sig
-        if '__init__' in namespace and _doc:
-            namespace['__init__'].__doc__ = _doc
+        if sig:
+            namespace['__signature__'] = sig
+        if '__init__' in namespace and sig:
+            namespace['__init__'].__signature__ = sig
+        if '__init__' in namespace and doc:
+            namespace['__init__'].__doc__ = doc
         return super().__new__(mcs, name, bases, namespace, **kwargs)
 
     def __subclasscheck__(cls, subclass):
@@ -324,17 +325,17 @@ class Container(metaclass=Sup3rMeta):
         data: Union[
             Sup3rX,
             Sup3rDataset,
-            Tuple[Sup3rX, ...],
-            Tuple[Sup3rDataset, ...],
-            Dict[str, Sup3rX],
-            Dict[str, Sup3rDataset],
+            tuple[Sup3rX, ...],
+            tuple[Sup3rDataset, ...],
+            dict[str, Sup3rX],
+            dict[str, Sup3rDataset],
         ] = None,
     ):
         """
         Parameters
         ----------
-        data: Union[Sup3rX, Sup3rDataset, Tuple[Sup3rX, ...],
-                    Tuple[Sup3rDataset, ...]
+        data: Union[Sup3rX, Sup3rDataset, tuple[Sup3rX, ...],
+                    tuple[Sup3rDataset, ...]
             Can be an ``xr.Dataset``, a :class:`~.accessor.Sup3rX` object, a
             :class:`.Sup3rDataset` object, or a tuple of such objects.
 
@@ -405,7 +406,7 @@ class Container(metaclass=Sup3rMeta):
             msg = (
                 f'{self.__class__.__name__}.data is being set with a '
                 f'{len(data)}-tuple without explicit dataset names. We will '
-                f'assume name ordering: {Sup3rDataset.DSET_NAMES[:len(data)]}'
+                f'assume name ordering: {Sup3rDataset.DSET_NAMES[: len(data)]}'
             )
             logger.warning(msg)
             warn(msg)

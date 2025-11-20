@@ -2,7 +2,7 @@
 samplers."""
 
 import logging
-from typing import TYPE_CHECKING, Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from sup3r.preprocessing.batch_queues.base import SingleBatchQueue
 from sup3r.preprocessing.batch_queues.conditional import (
@@ -86,15 +86,15 @@ def BatchHandlerFactory(
         @log_args
         def __init__(
             self,
-            train_containers: List['Container'],
-            val_containers: Optional[List['Container']] = None,
+            train_containers: list['Container'],
+            val_containers: Optional[list['Container']] = None,
             sample_shape: Optional[tuple] = None,
             batch_size: int = 16,
             n_batches: int = 64,
             s_enhance: int = 1,
             t_enhance: int = 1,
-            means: Optional[Union[Dict, str]] = None,
-            stds: Optional[Union[Dict, str]] = None,
+            means: Optional[Union[dict, str]] = None,
+            stds: Optional[Union[dict, str]] = None,
             queue_cap: Optional[int] = None,
             transform_kwargs: Optional[dict] = None,
             max_workers: int = 1,
@@ -105,12 +105,12 @@ def BatchHandlerFactory(
             """
             Parameters
             ----------
-            train_containers : List[Container]
+            train_containers : list[Container]
                 List of objects with a `.data` attribute, which will be used
                 to initialize Sampler objects and then used to initialize a
                 batch queue of training data. The data can be a Sup3rX or
                 Sup3rDataset object.
-            val_containers : List[Container]
+            val_containers : list[Container]
                 List of objects with a `.data` attribute, which will be used
                 to initialize Sampler objects and then used to initialize a
                 batch queue of validation data. The data can be a Sup3rX or a
@@ -139,7 +139,7 @@ def BatchHandlerFactory(
                 Maximum number of batches the batch queue can store. Changing
                 this can effect the speed with which batches move through
                 training.
-            transform_kwargs : Union[Dict, None]
+            transform_kwargs : Union[dict, None]
                 Dictionary of kwargs to be passed to `self.transform`. This
                 method performs smoothing / coarsening.
             max_workers : int
@@ -224,7 +224,7 @@ def BatchHandlerFactory(
             self.stds = stats.stds
 
             if not val_samplers:
-                self.val_data: Union[List, Type[self.VAL_QUEUE]] = []
+                self.val_data: Union[list, type[self.VAL_QUEUE]] = []
             else:
                 logger.info('Normalizing validation samplers.')
                 stats.normalize(val_samplers)

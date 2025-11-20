@@ -12,7 +12,7 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
 import tensorflow as tf
@@ -36,7 +36,7 @@ class AbstractBatchQueue(Collection, ABC):
 
     def __init__(
         self,
-        samplers: Union[List['Sampler'], List['DualSampler']],
+        samplers: Union[list['Sampler'], list['DualSampler']],
         batch_size: int = 16,
         n_batches: int = 64,
         s_enhance: int = 1,
@@ -51,7 +51,7 @@ class AbstractBatchQueue(Collection, ABC):
         """
         Parameters
         ----------
-        samplers : List[Sampler]
+        samplers : list[Sampler]
             List of Sampler instances
         batch_size : int
             Number of observations / samples in a batch
@@ -64,7 +64,7 @@ class AbstractBatchQueue(Collection, ABC):
             Integer factor by which the temporal axes is to be enhanced.
         queue_cap : int
             Maximum number of batches the batch queue can store.
-        transform_kwargs : Union[Dict, None]
+        transform_kwargs : Union[dict, None]
             Dictionary of kwargs to be passed to `self.transform`. This method
             performs smoothing / coarsening.
         max_workers : int
@@ -359,6 +359,6 @@ class AbstractBatchQueue(Collection, ABC):
         """Shapes of batches returned by ``__next__``"""
         lr_shape, hr_shape = self.lr_shape, self.hr_shape
         if self.sample_shape[2] == 1:
-            lr_shape = lr_shape[:2] + (lr_shape[-1],)
-            hr_shape = hr_shape[:2] + (hr_shape[-1],)
+            lr_shape = (*lr_shape[:2], lr_shape[-1])
+            hr_shape = (*hr_shape[:2], hr_shape[-1])
         return (self.batch_size, *lr_shape), (self.batch_size, *hr_shape)

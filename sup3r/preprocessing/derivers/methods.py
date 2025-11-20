@@ -3,7 +3,7 @@
 import copy
 import logging
 from abc import ABC, abstractmethod
-from typing import Tuple, Union
+from typing import Union
 
 import numpy as np
 import xarray as xr
@@ -27,7 +27,7 @@ class DerivedFeature(ABC):
     should include all features required for a successful `.compute` call.
     """
 
-    inputs: Tuple[str, ...] = ()
+    inputs: tuple[str, ...] = ()
 
     @classmethod
     @abstractmethod
@@ -159,8 +159,7 @@ class CloudMask(DerivedFeature):
         cloud_mask = cloud_mask.astype(np.float32)
         cloud_mask[night_mask] = np.nan
         cloud_mask = xr.DataArray(
-            data=cloud_mask,
-            dims=Dimension.dims_3d()[: len(data.shape)]
+            data=cloud_mask, dims=Dimension.dims_3d()[: len(data.shape)]
         )
         return cloud_mask.astype(np.float32)
 
@@ -395,8 +394,7 @@ class Sza(DerivedFeature):
         """Compute method for sza."""
         sza = SolarZenith.get_zenith(data.time_index, data.lat_lon)
         sza = xr.DataArray(
-            data=sza,
-            dims=Dimension.dims_3d()[: len(sza.shape)]
+            data=sza, dims=Dimension.dims_3d()[: len(sza.shape)]
         )
         return sza.astype(np.float32)
 
@@ -455,21 +453,19 @@ RegistryH5SolarCC = {
 }
 
 RegistryNCforCC = copy.deepcopy(RegistryBase)
-RegistryNCforCC.update(
-    {
-        'u_(.*)': 'ua_(.*)',
-        'v_(.*)': 'va_(.*)',
-        'relativehumidity_2m': 'hurs',
-        'relativehumidity_min_2m': 'hursmin',
-        'relativehumidity_max_2m': 'hursmax',
-        'clearsky_ratio': ClearSkyRatioCC,
-        'temperature_(.*)': TempNCforCC,
-        'temperature_2m': Tas,
-        'temperature_max_2m': TasMax,
-        'temperature_min_2m': TasMin,
-        'pressure_(.*)': 'level_(.*)',
-    }
-)
+RegistryNCforCC.update({
+    'u_(.*)': 'ua_(.*)',
+    'v_(.*)': 'va_(.*)',
+    'relativehumidity_2m': 'hurs',
+    'relativehumidity_min_2m': 'hursmin',
+    'relativehumidity_max_2m': 'hursmax',
+    'clearsky_ratio': ClearSkyRatioCC,
+    'temperature_(.*)': TempNCforCC,
+    'temperature_2m': Tas,
+    'temperature_max_2m': TasMax,
+    'temperature_min_2m': TasMin,
+    'pressure_(.*)': 'level_(.*)',
+})
 
 
 RegistryNCforCCwithPowerLaw = {

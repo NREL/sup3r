@@ -1,9 +1,11 @@
 """Test the custom sup3r solar module that converts GAN clearsky ratio outputs
 to irradiance data."""
+
 import glob
 import json
 import os
 import tempfile
+import traceback
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -26,10 +28,12 @@ LR_LON, LR_LAT = np.meshgrid(LR_LON, LR_LAT)
 LR_LON = np.expand_dims(LR_LON, axis=2)
 LR_LAT = np.expand_dims(LR_LAT, axis=2)
 LOW_RES_LAT_LON = np.concatenate((LR_LAT, LR_LON), axis=2)
-LOW_RES_TIMES = pd_date_range('20500101', '20500104',
-                              inclusive='left', freq='1d')
-HIGH_RES_TIMES = pd_date_range('20500101', '20500104',
-                               inclusive='left', freq='1h')
+LOW_RES_TIMES = pd_date_range(
+    '20500101', '20500104', inclusive='left', freq='1d'
+)
+HIGH_RES_TIMES = pd_date_range(
+    '20500101', '20500104', inclusive='left', freq='1h'
+)
 
 
 @pytest.fixture(scope='module')
@@ -45,16 +49,15 @@ def test_solar_module(plot=False):
     t_slice = slice(24, 48)
 
     with tempfile.TemporaryDirectory() as td:
-
-        fps, _ = make_fake_cs_ratio_files(td, LOW_RES_TIMES, LOW_RES_LAT_LON,
-                                          model_meta=GAN_META)
+        fps, _ = make_fake_cs_ratio_files(
+            td, LOW_RES_TIMES, LOW_RES_LAT_LON, model_meta=GAN_META
+        )
 
         with Resource(fps[1]) as res:
             meta_base = res.meta
             attrs_base = res.global_attrs
 
-        with Solar(fps, NSRDB_FP, t_slice=t_slice,
-                   nn_threshold=0.4) as solar:
+        with Solar(fps, NSRDB_FP, t_slice=t_slice, nn_threshold=0.4) as solar:
             ghi = solar.ghi
             dni = solar.dni
             dhi = solar.dhi
@@ -87,10 +90,10 @@ def test_solar_module(plot=False):
 
                 res_ti = res.time_index.tz_convert(None)
                 assert (HIGH_RES_TIMES[t_slice] == res_ti).all()
-                assert np.allclose(res.meta['latitude'],
-                                   meta_base['latitude'])
-                assert np.allclose(res.meta['longitude'],
-                                   meta_base['longitude'])
+                assert np.allclose(res.meta['latitude'], meta_base['latitude'])
+                assert np.allclose(
+                    res.meta['longitude'], meta_base['longitude']
+                )
 
                 gattrs = res.global_attrs
                 assert gattrs['nsrdb_source'] == NSRDB_FP
@@ -128,10 +131,14 @@ def test_chunk_file_parser():
         fp_sets, t_slices, _, _, _ = Solar.get_sup3r_fps(fp_pattern)
 
         for fp_set, t_slice in zip(fp_sets, t_slices):
-            s_ids = [os.path.basename(fp).replace('.h5', '').split('_')[-1]
-                     for fp in fp_set]
-            t_ids = [os.path.basename(fp).replace('.h5', '').split('_')[-2]
-                     for fp in fp_set]
+            s_ids = [
+                os.path.basename(fp).replace('.h5', '').split('_')[-1]
+                for fp in fp_set
+            ]
+            t_ids = [
+                os.path.basename(fp).replace('.h5', '').split('_')[-2]
+                for fp in fp_set
+            ]
 
             assert len(set(s_ids)) == 1
 
@@ -147,13 +154,15 @@ def test_solar_cli(runner):
     """Test the solar CLI. This test is here and not in the test_cli.py file
     because it uses some common test utilities stored here."""
     with tempfile.TemporaryDirectory() as td:
-        fps, fp_pattern = make_fake_cs_ratio_files(td, LOW_RES_TIMES,
-                                                   LOW_RES_LAT_LON,
-                                                   model_meta=GAN_META)
-        config = {'fp_pattern': fp_pattern,
-                  'nsrdb_fp': NSRDB_FP,
-                  'log_level': 'DEBUG',
-                  'log_pattern': os.path.join(td, 'logs/solar.log')}
+        fps, fp_pattern = make_fake_cs_ratio_files(
+            td, LOW_RES_TIMES, LOW_RES_LAT_LON, model_meta=GAN_META
+        )
+        config = {
+            'fp_pattern': fp_pattern,
+            'nsrdb_fp': NSRDB_FP,
+            'log_level': 'DEBUG',
+            'log_pattern': os.path.join(td, 'logs/solar.log'),
+        }
 
         config_path = os.path.join(td, 'config.json')
         with open(config_path, 'w') as fh:
@@ -162,9 +171,9 @@ def test_solar_cli(runner):
         result = runner.invoke(solar_main, ['-c', config_path, '-v'])
 
         if result.exit_code != 0:
-            import traceback
-            msg = ('Failed with error {}'
-                   .format(traceback.print_exception(*result.exc_info)))
+            msg = 'Failed with error {}'.format(
+                traceback.print_exception(*result.exc_info)
+            )
 
             log_file = os.path.join(td, 'logs/sup3r_solar.log')
             if os.path.exists(log_file):
@@ -174,8 +183,9 @@ def test_solar_cli(runner):
 
             raise RuntimeError(msg)
 
-        status_files = glob.glob(os.path.join(f'{td}/.gaps/',
-                                              '*jobstatus*.json'))
+        status_files = glob.glob(
+            os.path.join(f'{td}/.gaps/', '*jobstatus*.json')
+        )
         assert len(status_files) == len(fps)
 
         out_files = glob.glob(os.path.join(td, 'chunks/*_irradiance.h5'))

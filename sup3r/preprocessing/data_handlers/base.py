@@ -18,7 +18,7 @@ load both with groups
 """
 
 import logging
-from typing import Callable, Dict, Optional, Union
+from typing import Callable, Optional, Union
 
 from rex import MultiFileNSRDBX, MultiFileWindX
 
@@ -102,7 +102,7 @@ class DataHandler(Deriver):
         features='all',
         load_features='all',
         res_kwargs: Optional[dict] = None,
-        chunks: Union[str, Dict[str, int]] = 'auto',
+        chunks: Union[str, dict[str, int]] = 'auto',
         target: Optional[tuple] = None,
         shape: Optional[tuple] = None,
         time_slice: Union[slice, tuple, list, None] = slice(None),

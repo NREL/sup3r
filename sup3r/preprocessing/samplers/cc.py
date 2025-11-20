@@ -1,7 +1,7 @@
 """Sampler for climate change applications."""
 
 import logging
-from typing import Dict, Optional
+from typing import Optional
 
 import numpy as np
 
@@ -35,7 +35,7 @@ class DualSamplerCC(DualSampler):
         batch_size: int = 16,
         s_enhance: int = 1,
         t_enhance: int = 24,
-        feature_sets: Optional[Dict] = None,
+        feature_sets: Optional[dict] = None,
     ):
         """
         Parameters
@@ -79,12 +79,10 @@ class DualSamplerCC(DualSampler):
         if t_enhance == 1:
             hr = data.daily
         if s_enhance > 1:
-            lr = lr.coarsen(
-                {
-                    Dimension.SOUTH_NORTH: s_enhance,
-                    Dimension.WEST_EAST: s_enhance,
-                }
-            ).mean()
+            lr = lr.coarsen({
+                Dimension.SOUTH_NORTH: s_enhance,
+                Dimension.WEST_EAST: s_enhance,
+            }).mean()
         data = Sup3rDataset(low_res=lr, high_res=hr)
         super().__init__(
             data=data,

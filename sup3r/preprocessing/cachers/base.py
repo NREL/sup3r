@@ -3,7 +3,7 @@
 import copy
 import logging
 import os
-from typing import TYPE_CHECKING, Dict, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 from warnings import warn
 
 import dask
@@ -41,7 +41,7 @@ class Cacher(Container):
     def __init__(
         self,
         data: Union['Sup3rX', 'Sup3rDataset'],
-        cache_kwargs: Optional[Dict] = None,
+        cache_kwargs: Optional[dict] = None,
     ):
         """
         Parameters

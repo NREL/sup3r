@@ -45,7 +45,7 @@ class Sup3rGanWithObs(Sup3rGan):
         ----------
         args : list
             Positional args for ``Sup3rGan`` parent class.
-        onshore_obs_frac : Dict[List] | Dict[float]
+        onshore_obs_frac : dict[List] | dict[float]
             Fraction of the batch that should be treated as onshore
             observations. Should include ``spatial`` key and optionally
             ``time`` key if this is a spatiotemporal model. The values should

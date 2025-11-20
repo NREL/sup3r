@@ -19,7 +19,7 @@ class BatchQueueDC(SingleBatchQueue):
         """
         Parameters
         ----------
-        samplers : List[Sampler]
+        samplers : list[Sampler]
             List of Sampler instances
         n_space_bins : int
             Number of spatial bins to use for weighted sampling. e.g. if this
@@ -77,7 +77,7 @@ class ValBatchQueueDC(BatchQueueDC):
         """
         Parameters
         ----------
-        samplers : List[Sampler]
+        samplers : list[Sampler]
             List of Sampler instances
         n_space_bins : int
             Number of spatial bins to use for weighted sampling. e.g. if this

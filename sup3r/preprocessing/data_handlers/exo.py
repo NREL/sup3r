@@ -63,7 +63,6 @@ class ExoData(dict):
 
         Parameters
         ----------
-
         steps : dict
             Dictionary with feature keys each with entries describing whether
             features should be combined at input, a mid network layer, or with
@@ -173,7 +172,7 @@ class ExoData(dict):
 
         Returns
         -------
-        split_list : List[ExoData]
+        split_list : list[ExoData]
             List of ``ExoData`` objects coming from the split of ``self``,
             according to ``split_steps``
         """
