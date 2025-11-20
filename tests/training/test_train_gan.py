@@ -247,6 +247,55 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
         batch_handler.stop()
 
 
+@pytest.mark.parametrize('loss_func', ['SlicedWassersteinLoss'])
+def test_train_with_custom_loss(loss_func, n_epoch=8):
+    """Test basic model training with sliced wasserstein loss."""
+
+    lr = 5e-5
+    Sup3rGan.seed()
+    model = Sup3rGan(
+        pytest.ST_FP_GEN,
+        pytest.ST_FP_DISC,
+        learning_rate=lr,
+        loss={loss_func: {}},
+    )
+
+    train_handler, val_handler = _get_handlers()
+
+    with tempfile.TemporaryDirectory() as td:
+        # stats will be calculated since they are given as None
+        batch_handler = BatchHandler(
+            train_containers=[train_handler],
+            val_containers=[val_handler],
+            sample_shape=(12, 12, 16),
+            batch_size=15,
+            s_enhance=3,
+            t_enhance=4,
+            n_batches=10,
+            means=None,
+            stds=None,
+        )
+
+        model_kwargs = {
+            'input_resolution': {'spatial': '30km', 'temporal': '60min'},
+            'n_epoch': n_epoch,
+            'weight_gen_advers': 0,
+            'train_gen': True,
+            'train_disc': False,
+            'checkpoint_int': 1,
+            'out_dir': os.path.join(td, 'test_{epoch}'),
+        }
+
+        model.train(batch_handler, **model_kwargs)
+
+        tlossg = model.history['train_loss_gen'].values
+        vlossg = model.history['val_loss_gen'].values
+        assert np.sum(np.diff(tlossg)) < 0
+        assert np.sum(np.diff(vlossg)) < 0
+
+        batch_handler.stop()
+
+
 def test_train_st_weight_update(n_epoch=2):
     """Test basic spatiotemporal model training with discriminators and
     adversarial loss updating."""

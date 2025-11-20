@@ -215,18 +215,12 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
         )
         assert len(x1.shape) == 5 and len(x2.shape) == 5, msg
 
-        x1_div = tf.stack(
-            [
-                self._compute_md(x1, fidx=i)
-                for i in range(0, 2 * hub_heights, 2)
-            ]
-        )
-        x2_div = tf.stack(
-            [
-                self._compute_md(x2, fidx=i)
-                for i in range(0, 2 * hub_heights, 2)
-            ]
-        )
+        x1_div = tf.stack([
+            self._compute_md(x1, fidx=i) for i in range(0, 2 * hub_heights, 2)
+        ])
+        x2_div = tf.stack([
+            self._compute_md(x2, fidx=i) for i in range(0, 2 * hub_heights, 2)
+        ])
 
         return self.LOSS_METRIC(x1_div, x2_div)
 
@@ -725,3 +719,41 @@ class PerceptualLoss(tf.keras.losses.Loss):
             losses.append(self._feature_loss(x1_f, x2_f))
 
         return tf.reduce_mean(losses)
+
+
+class SlicedWassersteinLoss(tf.keras.losses.Loss):
+    """Loss class for sliced wasserstein distance loss"""
+
+    def __call__(self, x1, x2, n_projections=64):
+        """Sliced Wasserstein distance based on random 1D projections
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        n_projections : int
+            number of random 1D projections to use
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor loss value
+        """
+        assert x2.shape == x1.shape
+        loss = tf.constant(0.0, dtype=tf.float32)
+        for _ in range(n_projections):
+            v = tf.random.normal([x1.shape[1]], dtype=tf.float32)
+            v /= tf.norm(v) + 1e-8
+
+            proj_x = tf.linalg.matvec(x1, v)
+            proj_y = tf.linalg.matvec(x2, v)
+            px = tf.sort(proj_x)
+            py = tf.sort(proj_y)
+
+            loss += tf.reduce_mean(tf.square(px - py))
+
+        return loss / n_projections
