@@ -743,17 +743,34 @@ class SlicedWassersteinLoss(tf.keras.losses.Loss):
         tf.tensor
             0D tensor loss value
         """
-        assert x2.shape == x1.shape
-        loss = tf.constant(0.0, dtype=tf.float32)
-        for _ in range(n_projections):
-            v = tf.random.normal([x1.shape[1]], dtype=tf.float32)
-            v /= tf.norm(v) + 1e-8
+        msg = (
+            'The SlicedWassersteinLoss is meant to be used on spatial or '
+            'spatiotemporal data only. Received tensor(s) that are not 4D '
+            'or 5D'
+        )
+        assert len(x1.shape) in (4, 5), msg
+        if len(x1.shape) == 4:
+            T = 1
+            x1 = tf.expand_dims(x1, axis=3)
+            x2 = tf.expand_dims(x2, axis=3)
 
-            proj_x = tf.linalg.matvec(x1, v)
-            proj_y = tf.linalg.matvec(x2, v)
-            px = tf.sort(proj_x)
-            py = tf.sort(proj_y)
+        B, H, W, T, C = x1.shape
 
-            loss += tf.reduce_mean(tf.square(px - py))
+        # Flatten only spatial/time dims → (B, HWT, C)
+        x1_flat = tf.reshape(x1, (B, H * W * T, C))
+        x2_flat = tf.reshape(x2, (B, H * W * T, C))
 
-        return loss / n_projections
+        # Random projection directions over HWT only
+        proj = tf.random.normal((n_projections, H * W * T))
+        proj = tf.math.l2_normalize(proj, axis=-1)  # normalize
+
+        # Project spatial dimensions → (num_proj, B, C)
+        # matmul: (num_proj, HWT) @ (B, HWT, C) → (B, num_proj, C)
+        x1_proj = proj @ x1_flat
+        x2_proj = proj @ x2_flat
+
+        # Sort each projection's distribution along the batch dimension
+        x1_sorted = tf.sort(x1_proj, axis=1)
+        x2_sorted = tf.sort(x2_proj, axis=1)
+
+        return tf.reduce_mean(tf.abs(x1_sorted - x2_sorted))
