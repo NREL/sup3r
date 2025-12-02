@@ -750,7 +750,6 @@ class SlicedWassersteinLoss(tf.keras.losses.Loss):
         )
         assert len(x1.shape) in (4, 5), msg
         if len(x1.shape) == 4:
-            T = 1
             x1 = tf.expand_dims(x1, axis=3)
             x2 = tf.expand_dims(x2, axis=3)
 
