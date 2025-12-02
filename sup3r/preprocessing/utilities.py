@@ -173,9 +173,14 @@ def get_date_range_kwargs(time_index):
         kwargs['drop_leap'] = True
 
     elif uneven_freq:
-        msg = f'Got uneven frequency for time index: {time_index}'
-        warn(msg)
-        logger.warning(msg)
+        msg = (
+            f'Got uneven frequency for time index: {time_index}. This can '
+            'occur if some input variables have different time steps. '
+            '(e.g. daily and hourly data). Input data must have a '
+            'consistent frequency.'
+        )
+        logger.error(msg)
+        raise ValueError(msg)
 
     return kwargs
 
