@@ -724,7 +724,7 @@ class PerceptualLoss(tf.keras.losses.Loss):
 class SlicedWassersteinLoss(tf.keras.losses.Loss):
     """Loss class for sliced wasserstein distance loss"""
 
-    def __call__(self, x1, x2, n_projections=64):
+    def __call__(self, x1, x2, n_projections=1024):
         """Sliced Wasserstein distance based on random 1D projections
 
         Parameters
@@ -742,6 +742,13 @@ class SlicedWassersteinLoss(tf.keras.losses.Loss):
         -------
         tf.tensor
             0D tensor loss value
+
+        Note
+        ----
+        Experimentally, we get stability in the SW metric when n_projections
+        is at least 30% of the number of projection dimensions, which for us
+        is HWT. This might be computationally expensive for large
+        spatial/temporal sizes so we default to 1024.
         """
         msg = (
             'The SlicedWassersteinLoss is meant to be used on spatial or '
@@ -768,8 +775,8 @@ class SlicedWassersteinLoss(tf.keras.losses.Loss):
         x1_proj = proj @ x1_flat
         x2_proj = proj @ x2_flat
 
-        # Sort each projection's distribution along the batch dimension
+        # Sort each projection's distribution along the projection dimension
         x1_sorted = tf.sort(x1_proj, axis=1)
         x2_sorted = tf.sort(x2_proj, axis=1)
 
-        return tf.reduce_mean(tf.abs(x1_sorted - x2_sorted))
+        return tf.reduce_mean((x1_sorted - x2_sorted) ** 2)
