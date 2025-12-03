@@ -215,18 +215,12 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
         )
         assert len(x1.shape) == 5 and len(x2.shape) == 5, msg
 
-        x1_div = tf.stack(
-            [
-                self._compute_md(x1, fidx=i)
-                for i in range(0, 2 * hub_heights, 2)
-            ]
-        )
-        x2_div = tf.stack(
-            [
-                self._compute_md(x2, fidx=i)
-                for i in range(0, 2 * hub_heights, 2)
-            ]
-        )
+        x1_div = tf.stack([
+            self._compute_md(x1, fidx=i) for i in range(0, 2 * hub_heights, 2)
+        ])
+        x2_div = tf.stack([
+            self._compute_md(x2, fidx=i) for i in range(0, 2 * hub_heights, 2)
+        ])
 
         return self.LOSS_METRIC(x1_div, x2_div)
 
@@ -725,3 +719,64 @@ class PerceptualLoss(tf.keras.losses.Loss):
             losses.append(self._feature_loss(x1_f, x2_f))
 
         return tf.reduce_mean(losses)
+
+
+class SlicedWassersteinLoss(tf.keras.losses.Loss):
+    """Loss class for sliced wasserstein distance loss"""
+
+    def __call__(self, x1, x2, n_projections=1024):
+        """Sliced Wasserstein distance based on random 1D projections
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        n_projections : int
+            number of random 1D projections to use
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor loss value
+
+        Note
+        ----
+        Experimentally, we get stability in the SW metric when n_projections
+        is at least 30% of the number of projection dimensions, which for us
+        is HWT. This might be computationally expensive for large
+        spatial/temporal sizes so we default to 1024.
+        """
+        msg = (
+            'The SlicedWassersteinLoss is meant to be used on spatial or '
+            'spatiotemporal data only. Received tensor(s) that are not 4D '
+            'or 5D'
+        )
+        assert len(x1.shape) in (4, 5), msg
+        if len(x1.shape) == 4:
+            x1 = tf.expand_dims(x1, axis=3)
+            x2 = tf.expand_dims(x2, axis=3)
+
+        B, H, W, T, C = x1.shape
+
+        # Flatten only spatial/time dims → (B, HWT, C)
+        x1_flat = tf.reshape(x1, (B, H * W * T, C))
+        x2_flat = tf.reshape(x2, (B, H * W * T, C))
+
+        # Random projection directions over HWT only
+        proj = tf.random.normal((n_projections, H * W * T))
+        proj = tf.math.l2_normalize(proj, axis=-1)  # normalize
+
+        # Project spatial dimensions → (num_proj, B, C)
+        # matmul: (num_proj, HWT) @ (B, HWT, C) → (B, num_proj, C)
+        x1_proj = proj @ x1_flat
+        x2_proj = proj @ x2_flat
+
+        # Sort each projection's distribution along the projection dimension
+        x1_sorted = tf.sort(x1_proj, axis=1)
+        x2_sorted = tf.sort(x2_proj, axis=1)
+
+        return tf.reduce_mean((x1_sorted - x2_sorted) ** 2)
