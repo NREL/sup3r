@@ -724,7 +724,23 @@ class PerceptualLoss(tf.keras.losses.Loss):
 class SlicedWassersteinLoss(tf.keras.losses.Loss):
     """Loss class for sliced wasserstein distance loss"""
 
-    def __call__(self, x1, x2, n_projections=1024):
+    def __init__(self, n_projections=1024):
+        """Parameters
+        ----------
+        n_projections : int
+            number of random 1D projections to use
+
+        Note
+        ----
+        Experimentally, we get stability in the SW metric when n_projections
+        is at least 30% of the number of projection dimensions, which for us
+        is HWT. This might be computationally expensive for large
+        spatial/temporal sizes so we default to 1024.
+        """
+        super().__init__()
+        self._n_projections = n_projections
+
+    def __call__(self, x1, x2):
         """Sliced Wasserstein distance based on random 1D projections
 
         Parameters
@@ -735,20 +751,11 @@ class SlicedWassersteinLoss(tf.keras.losses.Loss):
         x2 : tf.tensor
             high resolution data
             (n_observations, spatial_1, spatial_2, temporal, features)
-        n_projections : int
-            number of random 1D projections to use
 
         Returns
         -------
         tf.tensor
             0D tensor loss value
-
-        Note
-        ----
-        Experimentally, we get stability in the SW metric when n_projections
-        is at least 30% of the number of projection dimensions, which for us
-        is HWT. This might be computationally expensive for large
-        spatial/temporal sizes so we default to 1024.
         """
         msg = (
             'The SlicedWassersteinLoss is meant to be used on spatial or '
@@ -767,7 +774,7 @@ class SlicedWassersteinLoss(tf.keras.losses.Loss):
         x2_flat = tf.reshape(x2, (B, H * W * T, C))
 
         # Random projection directions over HWT only
-        proj = tf.random.normal((n_projections, H * W * T))
+        proj = tf.random.normal((self._n_projections, H * W * T))
         proj = tf.math.l2_normalize(proj, axis=-1)  # normalize
 
         # Project spatial dimensions → (num_proj, B, C)
