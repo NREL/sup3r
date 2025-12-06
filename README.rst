@@ -220,6 +220,7 @@ Option 2: Clone repo (recommended for developers)
    ``conda create --name sup3r python=3.11`` and ``conda activate sup3r``
 
    4.1 Install ``sup3r`` and its dependencies by running: ``pip install .`` (or ``pip install -e .`` for editable install)
+
    4.2 Run this if you want to train models on GPUs: ``pip install tensorflow[and-cuda]``
 
 5. Alternatively, run ``pixi install``
