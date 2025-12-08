@@ -585,7 +585,7 @@ class ForwardPass:
         model_kwargs,
         model_class,
         allowed_const,
-        invert_uv=None,
+        invert_uv=True,
         meta=None,
         nn_fill=True,
         output_workers=None,
@@ -613,7 +613,6 @@ class ForwardPass:
             information on this argument.
         invert_uv : bool
             Whether to convert uv to windspeed and winddirection for writing
-            output. This defaults to True for H5 output and False for NETCDF
             output.
         nn_fill : bool
             Whether to fill data outside of limits with nearest neighbour or
@@ -637,7 +636,7 @@ class ForwardPass:
         model = get_model(model_class, model_kwargs)
 
         mask = np.isnan(chunk.input_data).any(axis=(0, 1, 2))
-        feats = np.array(model.lr_features[:len(mask)])[mask]
+        feats = np.array(model.lr_features[: len(mask)])[mask]
         if np.any(mask):
             msg = f'Input data for {feats} contains NaN values!'
             logger.error(msg)
