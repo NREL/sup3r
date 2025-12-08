@@ -25,7 +25,7 @@ class OutputHandlerH5(OutputHandler):
         times,
         out_file,
         meta_data=None,
-        invert_uv=None,
+        invert_uv=True,
         nn_fill=False,
         max_workers=None,
         gids=None,
@@ -71,7 +71,6 @@ class OutputHandlerH5(OutputHandler):
             f'({len(times)}) conflict.'
         )
         assert data.shape[-2] == len(times), msg
-        invert_uv = True if invert_uv is None else invert_uv
         data, features = cls._transform_output(
             data.copy(),
             features,
@@ -85,13 +84,11 @@ class OutputHandlerH5(OutputHandler):
             if gids is not None
             else np.arange(np.prod(lat_lon.shape[:-1]))
         )
-        meta = pd.DataFrame(
-            {
-                'gid': gids.flatten(),
-                'latitude': lat_lon[..., 0].flatten(),
-                'longitude': lat_lon[..., 1].flatten(),
-            }
-        )
+        meta = pd.DataFrame({
+            'gid': gids.flatten(),
+            'latitude': lat_lon[..., 0].flatten(),
+            'longitude': lat_lon[..., 1].flatten(),
+        })
         data_list = []
         for i, _ in enumerate(features):
             flat_data = data[..., i].reshape((-1, len(times)))

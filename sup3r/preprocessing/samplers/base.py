@@ -4,6 +4,7 @@ additional information about how different features are used by models."""
 
 import logging
 from fnmatch import fnmatch
+from functools import cached_property
 from typing import Optional
 from warnings import warn
 
@@ -242,6 +243,7 @@ class Sampler(Container):
         out = compute_if_dask(out)
         return self._stack_samples(out)
 
+    @cached_property
     def _fast_batch_possible(self):
         return self.batch_size * self.sample_shape[2] <= self.data.shape[2]
 
@@ -257,7 +259,7 @@ class Sampler(Container):
             this method is sampling from a ``Sup3rDataset`` with two data
             members
         """  # pylint: disable=line-too-long # noqa
-        if self._fast_batch_possible():
+        if self._fast_batch_possible:
             return self._fast_batch()
         return self._slow_batch()
 

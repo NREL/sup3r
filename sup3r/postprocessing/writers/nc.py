@@ -1,5 +1,6 @@
 """Output handling"""
 
+import datetime
 import logging
 from datetime import datetime as dt
 
@@ -88,7 +89,7 @@ class OutputHandlerNC(OutputHandler):
             )
 
         attrs = meta_data or {}
-        now = dt.utcnow().isoformat()
+        now = dt.now(datetime.timezone.utc).isoformat()
         attrs['date_modified'] = now
         attrs['date_created'] = attrs.get('date_created', now)
 
