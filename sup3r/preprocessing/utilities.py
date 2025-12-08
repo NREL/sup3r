@@ -167,17 +167,17 @@ def get_date_range_kwargs(time_index):
     }
 
     nominal_ti = pd.date_range(**kwargs)
-    uneven_freq = len(set(np.diff(time_index))) > 1
+    unique_freqs = set(np.diff(time_index))
 
-    if uneven_freq and len(nominal_ti) > len(time_index):
+    if unique_freqs > 1 and len(nominal_ti) > len(time_index):
         kwargs['drop_leap'] = True
 
-    elif uneven_freq:
+    elif unique_freqs > 1:
         msg = (
-            f'Got uneven frequency for time index: {time_index}. This can '
-            'occur if some input variables have different time steps. '
-            '(e.g. daily and hourly data). Input data must have a '
-            'consistent frequency.'
+            f'Got more than one unique frequency ({unique_freqs}) for time '
+            f'index: {time_index}. This can occur if some input variables '
+            'have different time steps. (e.g. daily and hourly data). Input '
+            'data must have a consistent frequency.'
         )
         logger.error(msg)
         raise ValueError(msg)
