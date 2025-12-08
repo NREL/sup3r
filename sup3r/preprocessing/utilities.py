@@ -169,10 +169,10 @@ def get_date_range_kwargs(time_index):
     nominal_ti = pd.date_range(**kwargs)
     unique_freqs = set(np.diff(time_index))
 
-    if unique_freqs > 1 and len(nominal_ti) > len(time_index):
+    if len(unique_freqs) > 1 and len(nominal_ti) > len(time_index):
         kwargs['drop_leap'] = True
 
-    elif unique_freqs > 1:
+    elif len(unique_freqs) > 1:
         msg = (
             f'Got more than one unique frequency ({unique_freqs}) for time '
             f'index: {time_index}. This can occur if some input variables '
