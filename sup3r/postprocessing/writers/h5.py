@@ -49,7 +49,7 @@ class OutputHandlerH5(OutputHandler):
             Output file path
         meta_data : dict | None
             Dictionary of meta data from model
-        invert_uv : bool | None
+        invert_uv : bool
             Whether to convert u and v wind components to windspeed and
             direction
         nn_fill : bool
