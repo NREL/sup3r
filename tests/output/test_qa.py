@@ -79,6 +79,7 @@ def test_qa(input_files, ext):
             input_handler_kwargs=input_handler_kwargs.copy(),
             out_pattern=out_files,
             max_nodes=1,
+            invert_uv=False
         )
 
         forward_pass = ForwardPass(strategy)
