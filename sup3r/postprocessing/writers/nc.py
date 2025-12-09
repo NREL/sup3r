@@ -28,7 +28,7 @@ class OutputHandlerNC(OutputHandler):
         out_file,
         meta_data=None,
         max_workers=None,
-        invert_uv=True,
+        invert_uv=False,
         nn_fill=False,
         gids=None,
     ):

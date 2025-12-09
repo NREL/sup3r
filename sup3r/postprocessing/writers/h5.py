@@ -25,7 +25,7 @@ class OutputHandlerH5(OutputHandler):
         times,
         out_file,
         meta_data=None,
-        invert_uv=True,
+        invert_uv=False,
         nn_fill=False,
         max_workers=None,
         gids=None,

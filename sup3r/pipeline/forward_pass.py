@@ -535,6 +535,7 @@ class ForwardPass:
                         model_class=strategy.model_class,
                         allowed_const=strategy.allowed_const,
                         output_workers=strategy.output_workers,
+                        invert_uv=strategy.invert_uv,
                         meta=fwp.meta,
                     )
                     futures[fut] = {
@@ -585,7 +586,7 @@ class ForwardPass:
         model_kwargs,
         model_class,
         allowed_const,
-        invert_uv=True,
+        invert_uv=False,
         meta=None,
         nn_fill=True,
         output_workers=None,
@@ -613,7 +614,8 @@ class ForwardPass:
             information on this argument.
         invert_uv : bool
             Whether to convert uv to windspeed and winddirection for writing
-            output.
+            output. When this method is called during a pipeline forward pass
+            the value is taken from the strategy.invert_uv attribute.
         nn_fill : bool
             Whether to fill data outside of limits with nearest neighbour or
             cap to limits.
