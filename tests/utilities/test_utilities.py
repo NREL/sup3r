@@ -3,6 +3,7 @@
 import dask.array as da
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import pytest
 from scipy.interpolate import interp1d
 
@@ -16,12 +17,34 @@ from sup3r.preprocessing.samplers.utilities import (
     weighted_box_sampler,
     weighted_time_sampler,
 )
+from sup3r.preprocessing.utilities import (
+    get_date_range_kwargs,
+    make_time_index_from_kws,
+)
 from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.utilities import (
     RANDOM_GENERATOR,
     spatial_coarsening,
     temporal_coarsening,
 )
+
+
+def test_leap_day_handling():
+    """Test get_date_range_kwargs utility function"""
+
+    start = '2012-01-01 00:00:00'
+    end = '2012-12-31 00:00:00'
+    time_index = pd.date_range(start=start, end=end)
+    time_index = [t for t in time_index if not (t.month == 2 and t.day == 29)]
+    dr_kwargs = get_date_range_kwargs(time_index)
+    assert 'drop_leap' in dr_kwargs
+
+    new_ti = make_time_index_from_kws(dr_kwargs)
+    assert all(new_ti == time_index)
+
+    hr_ti = OutputHandler.get_times(new_ti, 24 * len(new_ti))
+    mask = [(t.month == 2 and t.day == 29) for t in hr_ti]
+    assert not any(mask)
 
 
 def test_log_interp():

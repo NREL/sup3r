@@ -454,9 +454,9 @@ class OutputHandler(OutputMixin):
             (spatial_1, spatial_2, 2)
             Last dimension has ordering (lat, lon)
         """
-        assert (
-            low_res_lat_lon.shape[0] > 1 and low_res_lat_lon.shape[1] > 1
-        ), 'low res lat/lon must have at least 2 rows and 2 columns'
+        assert low_res_lat_lon.shape[0] > 1 and low_res_lat_lon.shape[1] > 1, (
+            'low res lat/lon must have at least 2 rows and 2 columns'
+        )
 
         logger.debug('Getting high resolution lat / lon grid')
 
@@ -525,9 +525,13 @@ class OutputHandler(OutputMixin):
         """
         logger.debug('Getting high resolution time indices')
         logger.debug(
-            f'Low res times: {low_res_times[0]} to ' f'{low_res_times[-1]}'
+            f'Low res times: {low_res_times[0]} to {low_res_times[-1]}'
         )
         t_enhance = int(shape / len(low_res_times))
+
+        # TODO: This will fail if low_res_times[0] is Feb 28 of a leap year and
+        # low_res_times[1] is Mar 1 (when using a non-leap calendar) since the
+        # offset will be a day larger than expected.
         if len(low_res_times) > 1:
             offset = low_res_times[1] - low_res_times[0]
         else:
@@ -535,13 +539,21 @@ class OutputHandler(OutputMixin):
 
         freq = offset / np.timedelta64(1, 's')
         freq = int(60 * np.round(freq / 60) / t_enhance)
-        times = [
-            low_res_times[0] + i * np.timedelta64(freq, 's')
-            for i in range(shape)
-        ]
         freq = pd.tseries.offsets.DateOffset(seconds=freq)
-        times = pd_date_range(times[0], times[-1], freq=freq)
+        times = pd_date_range(
+            low_res_times[0], low_res_times[-1] + offset, freq=freq
+        )
+        times = times[:-1]
+
+        has_leap = any((t.month == 2 and t.day == 29) for t in low_res_times)
+        if not has_leap:
+            times = [t for t in times if not (t.month == 2 and t.day == 29)]
+
         logger.debug(f'High res times: {times[0]} to {times[-1]}')
+        assert len(times) == shape, (
+            f'High res times length {len(times)} does not match expected '
+            f'shape {shape}'
+        )
         return times
 
     @classmethod
