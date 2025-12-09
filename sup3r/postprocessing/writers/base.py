@@ -531,7 +531,8 @@ class OutputHandler(OutputMixin):
 
         # TODO: This will fail if low_res_times[0] is Feb 28 of a leap year and
         # low_res_times[1] is Mar 1 (when using a non-leap calendar) since the
-        # offset will be a day larger than expected.
+        # offset will be a day larger than expected. This should get the most
+        # common offset instead.
         if len(low_res_times) > 1:
             offset = low_res_times[1] - low_res_times[0]
         else:
@@ -545,9 +546,10 @@ class OutputHandler(OutputMixin):
         )
         times = times[:-1]
 
-        has_leap = any((t.month == 2 and t.day == 29) for t in low_res_times)
+        has_leap = any((low_res_times.month == 2) & (low_res_times.day == 29))
         if not has_leap:
-            times = [t for t in times if not (t.month == 2 and t.day == 29)]
+            leap_mask = (times.month == 2) & (times.day == 29)
+            times = times[~leap_mask]
 
         logger.debug(f'High res times: {times[0]} to {times[-1]}')
         assert len(times) == shape, (
