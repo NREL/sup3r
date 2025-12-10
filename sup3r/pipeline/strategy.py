@@ -171,10 +171,9 @@ class ForwardPassStrategy:
         chunks and overwrite any pre-existing outputs (False).
     output_workers : int | None
         Max number of workers to use for writing forward pass output.
-    invert_uv : bool | None
+    invert_uv : bool
         Whether to convert u and v wind components to windspeed and direction
-        for writing to output. This defaults to True for H5 output and False
-        for NETCDF output.
+        for writing to output. This defaults to True.
     nn_fill : bool
         Whether to fill data outside of accepted limits (e.g. relative
         humidity 0-100) with nearest neighbour or cap to limits.
@@ -221,7 +220,7 @@ class ForwardPassStrategy:
     allowed_const: Optional[Union[list, bool]] = None
     incremental: bool = True
     output_workers: int = 1
-    invert_uv: Optional[bool] = None
+    invert_uv: Optional[bool] = True
     nn_fill: bool = True
     pass_workers: int = 1
     max_nodes: int = 1
@@ -305,7 +304,7 @@ class ForwardPassStrategy:
         return meta_data
 
     def get_time_slices(self):
-        """Get the time slice for initializaing the input handler and the
+        """Get the time slice for initializing the input handler and the
         time slice applied to the data given by the input handler to get the
         actual requested time period. These are different because we want the
         data stored by the input handler to have extra time steps at the start

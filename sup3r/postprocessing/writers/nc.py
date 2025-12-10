@@ -1,5 +1,6 @@
 """Output handling"""
 
+import datetime
 import logging
 from datetime import datetime as dt
 
@@ -27,7 +28,7 @@ class OutputHandlerNC(OutputHandler):
         out_file,
         meta_data=None,
         max_workers=None,
-        invert_uv=None,
+        invert_uv=False,
         nn_fill=False,
         gids=None,
     ):
@@ -52,7 +53,7 @@ class OutputHandlerNC(OutputHandler):
             Dictionary of meta data from model
         max_workers : int | None
             Max workers to use for inverse transform.
-        invert_uv : bool | None
+        invert_uv : bool
             Whether to convert u and v wind components to windspeed and
             direction
         nn_fill : bool
@@ -62,8 +63,6 @@ class OutputHandlerNC(OutputHandler):
             List of coordinate indices used to label each lat lon pair and to
             help with spatial chunk data collection
         """
-
-        invert_uv = False if invert_uv is None else invert_uv
         data, features = cls._transform_output(
             data=data,
             features=features,
@@ -88,7 +87,7 @@ class OutputHandlerNC(OutputHandler):
             )
 
         attrs = meta_data or {}
-        now = dt.utcnow().isoformat()
+        now = dt.now(datetime.timezone.utc).isoformat()
         attrs['date_modified'] = now
         attrs['date_created'] = attrs.get('date_created', now)
 

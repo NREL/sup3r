@@ -305,7 +305,7 @@ class OutputHandler(OutputMixin):
         data,
         features,
         lat_lon,
-        invert_uv=None,
+        invert_uv=False,
         nn_fill=False,
         max_workers=None,
     ):
@@ -322,7 +322,7 @@ class OutputHandler(OutputMixin):
             Array of high res lat/lon for output data.
             (spatial_1, spatial_2, 2)
             Last dimension has ordering (lat, lon)
-        invert_uv : bool | None
+        invert_uv : bool
             Whether to convert u and v wind components to windspeed and
             direction
         nn_fill : bool
@@ -554,7 +554,7 @@ class OutputHandler(OutputMixin):
         times,
         out_file,
         meta_data,
-        invert_uv=True,
+        invert_uv=False,
         nn_fill=False,
         max_workers=None,
         gids=None,
@@ -570,7 +570,7 @@ class OutputHandler(OutputMixin):
         low_res_times,
         out_file,
         meta_data=None,
-        invert_uv=None,
+        invert_uv=False,
         nn_fill=False,
         max_workers=None,
         gids=None,
@@ -593,7 +593,7 @@ class OutputHandler(OutputMixin):
             Output file path
         meta_data : dict | None
             Dictionary of meta data from model
-        invert_uv : bool | None
+        invert_uv : bool
             Whether to convert u and v wind components to windspeed and
             direction
         nn_fill : bool

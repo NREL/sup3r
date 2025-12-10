@@ -83,8 +83,9 @@ class DualSampler(Sampler):
         self._lr_only_features = feature_sets.get('lr_only_features', [])
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])
         self.features = self.get_features(feature_sets)
-        lr_feats = self.lr_data.features
-        self.lr_features = [f for f in lr_feats if f in self.features]
+        self.lr_features = [
+            f for f in self.features if f in self.lr_data.features
+        ]
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.check_for_consistent_shapes()

@@ -73,6 +73,7 @@ def test_fwp_nc_cc():
             out_pattern=out_files,
             input_handler_name='DataHandlerNCforCC',
             pass_workers=None,
+            invert_uv=False
         )
         forward_pass = ForwardPass(strat)
         forward_pass.run(strat, node_index=0)
@@ -172,6 +173,7 @@ def test_fwp_spatial_only(input_files):
             out_pattern=out_files,
             pass_workers=1,
             output_workers=1,
+            invert_uv=False
         )
         forward_pass = ForwardPass(strat)
         assert strat.output_workers == 1
@@ -225,6 +227,7 @@ def test_fwp_nc(input_files):
             },
             out_pattern=out_files,
             pass_workers=1,
+            invert_uv=False
         )
         forward_pass = ForwardPass(strat)
         assert forward_pass.strategy.pass_workers == 1
@@ -614,6 +617,7 @@ def test_fwp_multi_step_model(input_files):
             model_class=strat.model_class,
             allowed_const=strat.allowed_const,
             output_workers=strat.output_workers,
+            invert_uv=strat.invert_uv,
             meta=fwp.meta,
         )
 
