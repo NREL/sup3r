@@ -343,6 +343,7 @@ hvplot = ">=0.10"
 [tool.pixi.feature.build.dependencies]
 build = ">=0.6"
 twine = ">=5.0"
+uv = ">=0.3.0"
 
 [tool.pytest_env]
 CUDA_VISIBLE_DEVICES = "-1"

@@ -504,7 +504,7 @@ class OutputHandler(OutputMixin):
         lat_lon = np.dstack((lats.reshape(shape), lons.reshape(shape)))
         logger.debug('Finished getting high resolution lat / lon grid')
 
-        return lat_lon.astype(np.float32)
+        return lat_lon
 
     @staticmethod
     def get_times(low_res_times, shape):

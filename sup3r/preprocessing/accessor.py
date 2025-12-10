@@ -605,7 +605,8 @@ class Sup3rX:
             np.diff(self._ds[Dimension.LONGITUDE].values, axis=0), 0
         )
         if not (lat_lon_2d and same_lats and same_lons):
-            msg = 'Cannot set regular grid for non-regular data'
+            msg = ('Cannot set regular grid for non-regular data. Latitude '
+                   f'check = {same_lats}, Longitude check = {same_lons}.')
             logger.warning(msg)
             warn(msg)
         else:
