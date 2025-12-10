@@ -4,7 +4,6 @@ additional information about how different features are used by models."""
 
 import logging
 from fnmatch import fnmatch
-from functools import cached_property
 from typing import Optional
 from warnings import warn
 
