@@ -32,10 +32,11 @@ from sup3r.utilities.utilities import (
 def test_leap_day_handling():
     """Test get_date_range_kwargs utility function"""
 
-    start = '2012-01-01 00:00:00'
-    end = '2012-12-31 00:00:00'
+    start = '2012-02-17 00:00:00'
+    end = '2012-03-25 00:00:00'
     time_index = pd.date_range(start=start, end=end)
-    time_index = [t for t in time_index if not (t.month == 2 and t.day == 29)]
+    mask = (time_index.month == 2) & (time_index.day == 29)
+    time_index = time_index[~mask]
     dr_kwargs = get_date_range_kwargs(time_index)
     assert 'drop_leap' in dr_kwargs
 
@@ -43,7 +44,7 @@ def test_leap_day_handling():
     assert all(new_ti == time_index)
 
     hr_ti = OutputHandler.get_times(new_ti, 24 * len(new_ti))
-    mask = [(t.month == 2 and t.day == 29) for t in hr_ti]
+    mask = (hr_ti.month == 2) & (hr_ti.day == 29)
     assert not any(mask)
 
 
