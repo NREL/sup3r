@@ -47,6 +47,12 @@ def test_leap_day_handling():
     mask = (hr_ti.month == 2) & (hr_ti.day == 29)
     assert not any(mask)
 
+    dr_kwargs = get_date_range_kwargs(hr_ti)
+    assert 'drop_leap' in dr_kwargs
+
+    new_ti = make_time_index_from_kws(dr_kwargs)
+    assert all(new_ti == hr_ti)
+
 
 def test_log_interp():
     """Make sure log interp generates reasonable output (e.g. between input

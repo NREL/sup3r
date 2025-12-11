@@ -143,6 +143,16 @@ def get_date_range_kwargs(time_index):
     provide a concise time_index representation which can be passed through
     the cli and avoid logging lengthly time indices.
 
+    Note
+    ----
+    If the time index has leap days but is otherwise regular frequency,
+    the kwarg ``drop_leap`` will be added to the output dict to indicate
+    that leap days should be removed after generating the date range. The
+    nominal frequency is determined by the minimum time delta in the
+    time index. Not seeing an edge case where the nominal frequency would not
+    be the minimum frequency but it's possible we should use the most common
+    frequency instead?
+
     Parameters
     ----------
     time_index : pd.DatetimeIndex
@@ -154,11 +164,8 @@ def get_date_range_kwargs(time_index):
         Dictionary to pass to pd.date_range(). Can also include kwarg
         ``drop_leap``
     """
-    freq = (
-        f'{(time_index[-1] - time_index[0]).total_seconds() / 60}min'
-        if len(time_index) == 2
-        else pd.infer_freq(time_index)
-    )
+    unique_freqs = list(set(np.diff(time_index))) / np.timedelta64(1, 's')
+    freq = pd.tseries.offsets.DateOffset(seconds=min(unique_freqs))
 
     kwargs = {
         'start': time_index[0].strftime('%Y-%m-%d %H:%M:%S'),
@@ -167,17 +174,16 @@ def get_date_range_kwargs(time_index):
     }
 
     nominal_ti = pd.date_range(**kwargs)
-    unique_freqs = set(np.diff(time_index))
 
     if len(unique_freqs) > 1 and len(nominal_ti) > len(time_index):
         kwargs['drop_leap'] = True
 
     elif len(unique_freqs) > 1:
         msg = (
-            f'Got more than one unique frequency ({unique_freqs}) for time '
-            f'index: {time_index}. This can occur if some input variables '
-            'have different time steps. (e.g. daily and hourly data). Input '
-            'data must have a consistent frequency.'
+            f'Got more than one unique frequency ({unique_freqs} seconds) for '
+            f'time index: {time_index}. This can occur if some input '
+            'variables have different time steps. (e.g. daily and hourly '
+            'data). Input data must have a consistent frequency.'
         )
         logger.error(msg)
         raise ValueError(msg)
