@@ -160,10 +160,12 @@ def get_time_index_freqs(time_index):
     unique_freqs : list
         List of unique frequencies in seconds for given time index.
     """
-    if len(time_index) == 1:
-        unique_freqs = [np.timedelta64(1, 'D')]
-    else:
-        unique_freqs = list(set(np.diff(time_index))) / np.timedelta64(1, 's')
+    unique_freqs = (
+        list(set(np.diff(time_index)))
+        if len(time_index) > 1
+        else [np.timedelta64(1, 'D')]
+    )
+    unique_freqs /= np.timedelta64(1, 's')
     nominal_freq = pd.tseries.offsets.DateOffset(seconds=min(unique_freqs))
     return nominal_freq, unique_freqs
 
