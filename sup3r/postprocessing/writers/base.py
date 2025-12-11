@@ -19,6 +19,7 @@ from sup3r.preprocessing.derivers.utilities import (
     invert_uv,
     parse_feature,
 )
+from sup3r.preprocessing.utilities import get_time_index_freqs
 from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import (
     enforce_limits,
@@ -454,9 +455,9 @@ class OutputHandler(OutputMixin):
             (spatial_1, spatial_2, 2)
             Last dimension has ordering (lat, lon)
         """
-        assert (
-            low_res_lat_lon.shape[0] > 1 and low_res_lat_lon.shape[1] > 1
-        ), 'low res lat/lon must have at least 2 rows and 2 columns'
+        assert low_res_lat_lon.shape[0] > 1 and low_res_lat_lon.shape[1] > 1, (
+            'low res lat/lon must have at least 2 rows and 2 columns'
+        )
 
         logger.debug('Getting high resolution lat / lon grid')
 
@@ -504,7 +505,7 @@ class OutputHandler(OutputMixin):
         lat_lon = np.dstack((lats.reshape(shape), lons.reshape(shape)))
         logger.debug('Finished getting high resolution lat / lon grid')
 
-        return lat_lon.astype(np.float32)
+        return lat_lon
 
     @staticmethod
     def get_times(low_res_times, shape):
@@ -525,23 +526,28 @@ class OutputHandler(OutputMixin):
         """
         logger.debug('Getting high resolution time indices')
         logger.debug(
-            f'Low res times: {low_res_times[0]} to ' f'{low_res_times[-1]}'
+            f'Low res times: {low_res_times[0]} to {low_res_times[-1]}'
         )
         t_enhance = int(shape / len(low_res_times))
-        if len(low_res_times) > 1:
-            offset = low_res_times[1] - low_res_times[0]
-        else:
-            offset = np.timedelta64(24, 'h')
 
-        freq = offset / np.timedelta64(1, 's')
-        freq = int(60 * np.round(freq / 60) / t_enhance)
-        times = [
-            low_res_times[0] + i * np.timedelta64(freq, 's')
-            for i in range(shape)
-        ]
-        freq = pd.tseries.offsets.DateOffset(seconds=freq)
-        times = pd_date_range(times[0], times[-1], freq=freq)
+        offset, _ = get_time_index_freqs(low_res_times)
+        freq = pd.tseries.offsets.DateOffset(
+            seconds=int(offset.seconds / t_enhance)
+        )
+        times = pd_date_range(
+            low_res_times[0], low_res_times[-1] + offset, freq=freq
+        )[:-1]
+
+        has_leap = any((low_res_times.month == 2) & (low_res_times.day == 29))
+        if not has_leap:
+            leap_mask = (times.month == 2) & (times.day == 29)
+            times = times[~leap_mask]
+
         logger.debug(f'High res times: {times[0]} to {times[-1]}')
+        assert len(times) == shape, (
+            f'High res times length {len(times)} does not match expected '
+            f'shape {shape}'
+        )
         return times
 
     @classmethod

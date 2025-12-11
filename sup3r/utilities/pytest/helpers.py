@@ -493,7 +493,7 @@ def make_fake_cs_ratio_files(td, low_res_times, low_res_lat_lon, model_meta):
             cs_ratio,
             ['clearsky_ratio'],
             low_res_lat_lon,
-            [timestamp],
+            pd.DatetimeIndex([timestamp]),
             out_file,
             max_workers=1,
             meta_data=model_meta,
