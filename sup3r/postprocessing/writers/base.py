@@ -19,6 +19,7 @@ from sup3r.preprocessing.derivers.utilities import (
     invert_uv,
     parse_feature,
 )
+from sup3r.preprocessing.utilities import get_time_index_freqs
 from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import (
     enforce_limits,
@@ -529,22 +530,13 @@ class OutputHandler(OutputMixin):
         )
         t_enhance = int(shape / len(low_res_times))
 
-        # TODO: This will fail if low_res_times[0] is Feb 28 of a leap year and
-        # low_res_times[1] is Mar 1 (when using a non-leap calendar) since the
-        # offset will be a day larger than expected. This should get the most
-        # common offset instead.
-        if len(low_res_times) > 1:
-            offset = low_res_times[1] - low_res_times[0]
-        else:
-            offset = np.timedelta64(24, 'h')
-
-        freq = offset / np.timedelta64(1, 's')
-        freq = int(60 * np.round(freq / 60) / t_enhance)
-        freq = pd.tseries.offsets.DateOffset(seconds=freq)
+        offset, _ = get_time_index_freqs(low_res_times)
+        freq = pd.tseries.offsets.DateOffset(
+            seconds=int(offset.seconds / t_enhance)
+        )
         times = pd_date_range(
             low_res_times[0], low_res_times[-1] + offset, freq=freq
-        )
-        times = times[:-1]
+        )[:-1]
 
         has_leap = any((low_res_times.month == 2) & (low_res_times.day == 29))
         if not has_leap:

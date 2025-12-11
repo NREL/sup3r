@@ -138,6 +138,36 @@ def log_args(func):
     return wrapper
 
 
+def get_time_index_freqs(time_index):
+    """Get nominal frequency and all unique frequencies for given time index.
+
+    Note
+    ----
+    The nominal frequency is determined by the minimum time delta in the time
+    index. Not seeing an edge case where the nominal frequency would not be the
+    minimum frequency but it's possible we should use the most common frequency
+    instead?
+
+    Parameters
+    ----------
+    time_index : pd.DatetimeIndex
+        Time index to get frequency for.
+
+    Returns
+    -------
+    nominal_freq : pd.DateOffset
+        Nominal frequency for given time index.
+    unique_freqs : list
+        List of unique frequencies in seconds for given time index.
+    """
+    if len(time_index) == 1:
+        unique_freqs = [np.timedelta64(1, 'D')]
+    else:
+        unique_freqs = list(set(np.diff(time_index))) / np.timedelta64(1, 's')
+    nominal_freq = pd.tseries.offsets.DateOffset(seconds=min(unique_freqs))
+    return nominal_freq, unique_freqs
+
+
 def get_date_range_kwargs(time_index):
     """Get kwargs for pd.date_range from a DatetimeIndex. This is used to
     provide a concise time_index representation which can be passed through
@@ -147,11 +177,7 @@ def get_date_range_kwargs(time_index):
     ----
     If the time index has leap days but is otherwise regular frequency,
     the kwarg ``drop_leap`` will be added to the output dict to indicate
-    that leap days should be removed after generating the date range. The
-    nominal frequency is determined by the minimum time delta in the
-    time index. Not seeing an edge case where the nominal frequency would not
-    be the minimum frequency but it's possible we should use the most common
-    frequency instead?
+    that leap days should be removed after generating the date range.
 
     Parameters
     ----------
@@ -164,13 +190,13 @@ def get_date_range_kwargs(time_index):
         Dictionary to pass to pd.date_range(). Can also include kwarg
         ``drop_leap``
     """
-    unique_freqs = list(set(np.diff(time_index))) / np.timedelta64(1, 's')
-    freq = pd.tseries.offsets.DateOffset(seconds=min(unique_freqs))
+
+    nominal_freq, unique_freqs = get_time_index_freqs(time_index)
 
     kwargs = {
         'start': time_index[0].strftime('%Y-%m-%d %H:%M:%S'),
         'end': time_index[-1].strftime('%Y-%m-%d %H:%M:%S'),
-        'freq': freq,
+        'freq': nominal_freq,
     }
 
     nominal_ti = pd.date_range(**kwargs)
