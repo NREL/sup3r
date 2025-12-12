@@ -19,7 +19,8 @@ shape = (20, 20)
 features = ['windspeed_100m', 'winddirection_100m']
 
 
-def test_cacher_attrs():
+@pytest.mark.parametrize('ext', ['h5', 'nc'])
+def test_cacher_attrs(ext):
     """Make sure attributes are preserved in cached data."""
     with tempfile.TemporaryDirectory() as td:
         nc = make_fake_dset(shape=(10, 10, 10), features=['ws_100m'])
@@ -35,7 +36,7 @@ def test_cacher_attrs():
         nc.attrs.update(other_attrs)
         tmp_file = td + '/test.nc'
         nc.to_netcdf(tmp_file)
-        cache_pattern = os.path.join(td, 'cached_{feature}.nc')
+        cache_pattern = os.path.join(td, 'cached_{feature}.' + ext)
         DataHandler(
             tmp_file,
             features=['windspeed_100m'],

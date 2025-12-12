@@ -259,12 +259,15 @@ class Cacher(Container):
     @classmethod
     def _prepare_h5_data(cls, data, features, keep_dim_order):
         """Prepare dataset and feature list for H5 writing."""
-        if (
-            len(data.dims) == 3
-            and Dimension.TIME in data.dims
-            and not keep_dim_order
-        ):
-            data = data.transpose(Dimension.TIME, *Dimension.dims_2d())
+
+        # Transpose time to first dimension for common H5 convention
+        if not keep_dim_order and Dimension.TIME in data.dims:
+            if len(data.dims) == 3:
+                data = data.transpose(Dimension.TIME, *Dimension.dims_2d())
+            elif len(data.dims) == 2:
+                data = data.transpose(
+                    Dimension.TIME, Dimension.FLATTENED_SPATIAL
+                )
 
         if features == 'all':
             features = list(data.data_vars)
@@ -279,15 +282,10 @@ class Cacher(Container):
         return data_subset, features
 
     @classmethod
-    def _set_h5_attributes(cls, f, data_subset, attrs):
-        """Set global attrs and write meta dataset to the open H5 file."""
-        global_attrs = data_subset.attrs.copy()
+    def _set_h5_meta(cls, f, data_subset, attrs):
+        """Get global attrs and write meta dataset to the open H5 file."""
         attrs = attrs or {}
         meta = attrs.pop('meta', {})
-        global_attrs.update(attrs)
-        global_attrs = {k: safe_cast(v) for k, v in global_attrs.items()}
-        for k, v in global_attrs.items():
-            f.attrs[k] = v
 
         if meta is None or (isinstance(meta, dict) and not meta):
             meta_df = pd.DataFrame()
@@ -333,6 +331,7 @@ class Cacher(Container):
         mode='w',
         attrs=None,
         keep_dim_order=False,
+        write_coords=True,
     ):
         """Cache data to h5 file using user provided chunks value.
 
@@ -361,6 +360,11 @@ class Cacher(Container):
             Whether to keep the original dimension order of the data. If
             ``False`` then the data will be transposed to have the time
             dimension first.
+        write_coords : bool
+            Whether to write coordinate datasets to file. If this is False
+            only the requested features will be written. Specific coordinates
+            can be written by including them in the features list.
+
         """
         chunks = chunks or 'auto'
 
@@ -372,10 +376,15 @@ class Cacher(Container):
 
         coord_names = [
             crd for crd in data_subset.coords if crd in Dimension.coords_4d()
-        ]
+        ] if write_coords else []
 
         with h5py.File(out_file, mode) as f:
-            cls._set_h5_attributes(f, data_subset, attrs)
+            data_subset, global_attrs = cls._set_data_attributes(
+                data_subset, features, attrs
+            )
+            cls._set_h5_meta(f, data_subset, attrs)
+            for k, v in global_attrs.items():
+                f.attrs[k] = safe_cast(v)
 
             for dset in [*coord_names, *features]:
                 data_arr, chunksizes, dset_name = cls._get_h5_array_and_chunks(
@@ -388,6 +397,9 @@ class Cacher(Container):
                     shape=data_arr.shape,
                     chunks=chunksizes,
                 )
+                for k, v in data_subset[dset].attrs.items():
+                    dset_obj.attrs[k] = safe_cast(v)
+
                 if max_workers == 1:
                     da.store(data_arr, dset_obj, scheduler='single-threaded')
                 else:
@@ -434,8 +446,8 @@ class Cacher(Container):
         return data_subset, features
 
     @classmethod
-    def _set_netcdf_attributes(cls, data_subset, features, attrs):
-        """Set variable and global attributes for netCDF output."""
+    def _set_data_attributes(cls, data_subset, features, attrs):
+        """Set variable and global attributes for data output."""
 
         attrs = attrs or {}
         for feature in features:
@@ -462,7 +474,7 @@ class Cacher(Container):
                 warn(msg)
                 data_subset.attrs[attr_name] = safe_serialize(attr_value)
 
-        return data_subset
+        return data_subset, global_attrs
 
     @classmethod
     def _configure_netcdf_encoding(cls, data_subset, features, chunks):
