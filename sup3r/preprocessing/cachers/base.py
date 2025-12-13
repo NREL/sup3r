@@ -531,7 +531,7 @@ class Cacher(Container):
             data, features, chunks
         )
 
-        data_subset = cls._set_netcdf_attributes(data_subset, features, attrs)
+        data_subset, _ = cls._set_data_attributes(data_subset, features, attrs)
 
         encoding = cls._configure_netcdf_encoding(
             data_subset, features, chunks

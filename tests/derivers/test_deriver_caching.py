@@ -55,7 +55,9 @@ def test_cacher_attrs(ext):
             'long_name': 'windspeed_100m',
             'standard_name': 'windspeed_100m',
         }
-        assert out.attrs == {**other_attrs, 'source_files': tmp_file}
+        global_attrs = {**other_attrs, 'source_files': tmp_file}
+        for k, v in global_attrs.items():
+            assert out.attrs[k] == v
 
 
 @pytest.mark.parametrize(
