@@ -115,12 +115,13 @@ class BaseLoader(Container, ABC):
 
     def _add_attrs(self, data):
         """Add meta data to dataset."""
-        attrs = {'source_files': self.file_paths}
-        attrs['global_attrs'] = getattr(self._res, 'global_attrs', [])
+        attrs = getattr(self._res, 'global_attrs', {})
+        attrs = attrs if isinstance(attrs, dict) else {'global_attrs': attrs}
         attrs.update(getattr(self._res, 'attrs', {}))
         attrs['date_modified'] = attrs.get(
             'date_modified', dt.now(datetime.timezone.utc).isoformat()
         )
+        attrs['source_files'] = attrs.get('source_files', self.file_paths)
         data.attrs.update(attrs)
         return data
 
