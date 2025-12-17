@@ -8,12 +8,12 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from sup3r.postprocessing import OutputHandlerH5, OutputHandlerNC
 from sup3r.preprocessing.base import Container, Sup3rDataset
 from sup3r.preprocessing.batch_handlers import BatchHandlerCC, BatchHandlerDC
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.samplers import DualSamplerCC, Sampler, SamplerDC
 from sup3r.utilities.utilities import RANDOM_GENERATOR, pd_date_range
+from sup3r.writers import OutputHandlerH5, OutputHandlerNC
 
 
 def make_fake_tif(shape, out_file):

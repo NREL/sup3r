@@ -6,13 +6,9 @@ import tempfile
 import numpy as np
 import pytest
 
-from sup3r.preprocessing import (
-    Cacher,
-    DataHandler,
-    DataHandlerH5WindCC,
-    Loader,
-)
+from sup3r.preprocessing import DataHandler, DataHandlerH5WindCC, Loader
 from sup3r.utilities.pytest.helpers import make_fake_dset
+from sup3r.writers import Cacher
 
 target = (39.01, -105.15)
 shape = (20, 20)

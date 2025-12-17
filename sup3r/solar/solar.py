@@ -16,11 +16,11 @@ from rex import MultiTimeResource, Resource
 from rex.utilities.fun_utils import get_fun_call_str
 from scipy.spatial import KDTree
 
-from sup3r.postprocessing import RexOutputs
 from sup3r.preprocessing.utilities import expand_paths
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.utilities import OUTPUT_ATTRS
+from sup3r.writers import RexOutputs
 
 logger = logging.getLogger(__name__)
 

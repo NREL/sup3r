@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 from rex import init_logger
 
-from sup3r.preprocessing import Cacher, Loader
+from sup3r.preprocessing import Loader
 from sup3r.preprocessing.loaders.utilities import (
     standardize_names,
     standardize_values,
@@ -32,6 +32,7 @@ from sup3r.preprocessing.names import (
 )
 from sup3r.preprocessing.utilities import log_args, ordered_dims
 from sup3r.utilities.utilities import get_tmp_file
+from sup3r.writers import Cacher
 
 # these are occasionally included in downloaded files, more often with cds-beta
 IGNORE_VARS = ('number', 'expver')

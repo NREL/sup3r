@@ -339,6 +339,8 @@ pytest-xdist = ">=3.0"
 [tool.pixi.feature.viz.dependencies]
 jupyter = ">=1.0"
 hvplot = ">=0.10"
+seaborn = ">=0.13.2,<0.14"
+ffmpeg = ">=6.1.1,<9"
 
 [tool.pixi.feature.build.dependencies]
 build = ">=0.6"

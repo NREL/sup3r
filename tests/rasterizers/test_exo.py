@@ -9,7 +9,6 @@ import pandas as pd
 import pytest
 from rex import Resource
 
-from sup3r.postprocessing import RexOutputs
 from sup3r.preprocessing import (
     BaseExoRasterizer,
     Dimension,
@@ -19,6 +18,7 @@ from sup3r.preprocessing import (
 )
 from sup3r.utilities.pytest.helpers import make_fake_dset
 from sup3r.utilities.utilities import RANDOM_GENERATOR, xr_open_mfdataset
+from sup3r.writers import RexOutputs
 
 TARGET = (13.67, 125.0)
 SHAPE = (8, 8)

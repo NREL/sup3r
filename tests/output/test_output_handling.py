@@ -7,12 +7,7 @@ import numpy as np
 import pandas as pd
 from rex import ResourceX
 
-from sup3r.postprocessing import (
-    CollectorH5,
-    CollectorNC,
-    OutputHandlerH5,
-    OutputHandlerNC,
-)
+from sup3r.postprocessing import CollectorH5, CollectorNC
 from sup3r.preprocessing import DataHandler, Loader
 from sup3r.preprocessing.derivers.utilities import (
     invert_uv,
@@ -23,6 +18,7 @@ from sup3r.utilities.pytest.helpers import (
     make_fake_h5_chunks,
 )
 from sup3r.utilities.utilities import RANDOM_GENERATOR
+from sup3r.writers import OutputHandlerH5, OutputHandlerNC
 
 
 def test_get_lat_lon():

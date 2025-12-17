@@ -18,7 +18,6 @@ import pandas as pd
 from sup3r.bias.utilities import bias_correct_features
 from sup3r.pipeline.slicer import ForwardPassSlicer
 from sup3r.pipeline.utilities import get_model
-from sup3r.postprocessing import OutputHandler
 from sup3r.preprocessing import ExoData, ExoDataHandler, Loader
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
@@ -30,6 +29,7 @@ from sup3r.preprocessing.utilities import (
     log_args,
 )
 from sup3r.utilities.utilities import Timer
+from sup3r.writers import OutputHandler
 
 logger = logging.getLogger(__name__)
 

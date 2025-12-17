@@ -54,11 +54,13 @@ class Cacher(Container):
             have a {feature} format key and either a h5 or nc file extension,
             based on desired output type.
 
-            Can also include a ``max_workers`` key and ``chunks`` key.
+            Can also include a ``max_workers``, ``chunks``, and ``attrs`` keys.
             ``max_workers`` is an inteeger specifying number of threads to use
-            for writing chunks to output files and ``chunks`` is a dictionary
+            for writing chunks to output files, ``chunks`` is a dictionary
             of dictionaries for each feature (or a single dictionary to use
-            for all features). e.g.
+            for all features), and ``attrs`` is a dictionary of attributes to
+            add to the output files which can include ``scale_factor`` values.
+            e.g.
             .. code-block:: JSON
                 {'cache_pattern': ...,
                     'chunks': {
@@ -67,6 +69,9 @@ class Cacher(Container):
                             'south_north': 100,
                             'west_east': 100
                         }
+                    }
+                    'attrs': {
+                        'u_10m': {'scale_factor': 10}
                     }
                 }
 
@@ -321,6 +326,15 @@ class Cacher(Container):
         return data_arr, chunksizes, dset_name
 
     @classmethod
+    def _scale_data(cls, data_subset):
+        """Scale data array based on scale_factor attribute."""
+        for dset in data_subset.data_vars:
+            scale_factor = data_subset[dset].attrs.get('scale_factor', None)
+            if scale_factor is not None and scale_factor != 1:
+                data_subset[dset] *= scale_factor
+        return data_subset
+
+    @classmethod
     def write_h5(
         cls,
         out_file,
@@ -374,14 +388,17 @@ class Cacher(Container):
             keep_dim_order=keep_dim_order,
         )
 
-        coord_names = [
-            crd for crd in data_subset.coords if crd in Dimension.coords_4d()
-        ] if write_coords else []
+        coord_names = (
+            [crd for crd in data_subset.coords if crd in Dimension.coords_4d()]
+            if write_coords
+            else []
+        )
 
         with h5py.File(out_file, mode) as f:
             data_subset, global_attrs = cls._set_data_attributes(
                 data_subset, features, attrs
             )
+            data_subset = cls._scale_data(data_subset)
             cls._set_h5_meta(f, data_subset, attrs)
             for k, v in global_attrs.items():
                 f.attrs[k] = safe_cast(v)
@@ -452,8 +469,6 @@ class Cacher(Container):
         attrs = attrs or {}
         for feature in features:
             var_attrs = data_subset[feature].attrs.copy()
-            var_attrs.setdefault('long_name', feature)
-            var_attrs.setdefault('standard_name', feature)
             var_attrs.update(attrs.pop(feature, {}))
             data_subset[feature].attrs.update(var_attrs)
 
