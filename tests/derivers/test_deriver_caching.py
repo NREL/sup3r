@@ -40,7 +40,12 @@ def test_cacher_attrs(ext):
             cache_kwargs={
                 'cache_pattern': cache_pattern,
                 'max_workers': 1,
-                'attrs': {'windspeed_100m': {'units': 'm/s'}},
+                'attrs': {
+                    'windspeed_100m': {
+                        'units': 'm/s',
+                        'long_name': 'Wind Speed at 100m',
+                    }
+                },
             },
         )
 
@@ -48,8 +53,7 @@ def test_cacher_attrs(ext):
         assert out.data['windspeed_100m'].attrs == {
             'attrs': 'test',
             'units': 'm/s',
-            'long_name': 'windspeed_100m',
-            'standard_name': 'windspeed_100m',
+            'long_name': 'Wind Speed at 100m'
         }
         global_attrs = {**other_attrs, 'source_files': tmp_file}
         for k, v in global_attrs.items():

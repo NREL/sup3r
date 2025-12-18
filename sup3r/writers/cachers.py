@@ -99,7 +99,7 @@ class Cacher(Container):
         mode='w',
         attrs=None,
         overwrite=False,
-        time_last=False,
+        time_last=None,
     ):
         """Write single NETCDF or H5 cache file."""
         if os.path.exists(out_file) and not overwrite:
@@ -123,8 +123,10 @@ class Cacher(Container):
         )
         if ext == '.h5':
             func = cls.write_h5
+            time_last = time_last if time_last is not None else False
         elif ext == '.nc':
             func = cls.write_netcdf
+            time_last = time_last if time_last is not None else True
         else:
             msg = (
                 'cache_pattern must have either h5 or nc extension. '
@@ -152,7 +154,7 @@ class Cacher(Container):
         max_workers=None,
         mode='w',
         attrs=None,
-        time_last=False,
+        time_last=None,
         overwrite=False,
     ):
         """Cache data to file with file type based on user provided
@@ -177,7 +179,8 @@ class Cacher(Container):
         time_last : bool
             Whether to keep the original dimension order of the data. If
             ``False`` then the data will be transposed to have the time
-            dimension first.
+            dimension first. This defaults to False for H5 output and True for
+            NetCDF output.
         overwrite : bool
             Whether to overwrite existing cache files.
         """
