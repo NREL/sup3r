@@ -339,7 +339,7 @@ class Cacher(Container):
         for dset in data_subset.data_vars:
             scale_factor = data_subset[dset].attrs.get('scale_factor', None)
             if scale_factor is not None and scale_factor != 1:
-                _, ext = os.path.splitext(out_file)
+                _, ext = os.path.splitext(out_file.replace('.tmp', ''))
                 if ext == '.h5':
                     data_subset[dset] *= scale_factor
                 else:
