@@ -12,10 +12,6 @@ from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.pipeline.strategy import ForwardPassChunk, ForwardPassStrategy
 from sup3r.pipeline.utilities import get_model
-from sup3r.postprocessing import (
-    OutputHandlerH5,
-    OutputHandlerNC,
-)
 from sup3r.preprocessing.utilities import (
     _mem_check,
     get_source_type,
@@ -25,6 +21,10 @@ from sup3r.preprocessing.utilities import (
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.utilities import Timer
+from sup3r.writers import (
+    OutputHandlerH5,
+    OutputHandlerNC,
+)
 
 logger = logging.getLogger(__name__)
 

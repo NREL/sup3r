@@ -7,9 +7,9 @@ from abc import ABC, abstractmethod
 
 from rex.utilities.fun_utils import get_fun_call_str
 
-from sup3r.postprocessing.writers.base import OutputMixin
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
+from sup3r.writers.base import OutputMixin
 
 logger = logging.getLogger(__name__)
 

@@ -54,11 +54,13 @@ class Cacher(Container):
             have a {feature} format key and either a h5 or nc file extension,
             based on desired output type.
 
-            Can also include a ``max_workers`` key and ``chunks`` key.
+            Can also include a ``max_workers``, ``chunks``, and ``attrs`` keys.
             ``max_workers`` is an inteeger specifying number of threads to use
-            for writing chunks to output files and ``chunks`` is a dictionary
+            for writing chunks to output files, ``chunks`` is a dictionary
             of dictionaries for each feature (or a single dictionary to use
-            for all features). e.g.
+            for all features), and ``attrs`` is a dictionary of attributes to
+            add to the output files which can include ``scale_factor`` values.
+            e.g.
             .. code-block:: JSON
                 {'cache_pattern': ...,
                     'chunks': {
@@ -67,6 +69,9 @@ class Cacher(Container):
                             'south_north': 100,
                             'west_east': 100
                         }
+                    }
+                    'attrs': {
+                        'u_10m': {'scale_factor': 10}
                     }
                 }
 
@@ -94,7 +99,7 @@ class Cacher(Container):
         mode='w',
         attrs=None,
         overwrite=False,
-        keep_dim_order=False,
+        time_last=None,
     ):
         """Write single NETCDF or H5 cache file."""
         if os.path.exists(out_file) and not overwrite:
@@ -118,8 +123,10 @@ class Cacher(Container):
         )
         if ext == '.h5':
             func = cls.write_h5
+            time_last = time_last if time_last is not None else False
         elif ext == '.nc':
             func = cls.write_netcdf
+            time_last = time_last if time_last is not None else True
         else:
             msg = (
                 'cache_pattern must have either h5 or nc extension. '
@@ -135,7 +142,7 @@ class Cacher(Container):
             max_workers=max_workers,
             mode=mode,
             attrs=attrs,
-            keep_dim_order=keep_dim_order,
+            time_last=time_last,
         )
         os.replace(tmp_file, out_file)
         logger.info('Moved %s to %s', tmp_file, out_file)
@@ -147,7 +154,7 @@ class Cacher(Container):
         max_workers=None,
         mode='w',
         attrs=None,
-        keep_dim_order=False,
+        time_last=None,
         overwrite=False,
     ):
         """Cache data to file with file type based on user provided
@@ -169,10 +176,11 @@ class Cacher(Container):
             Optional attributes to write to file. Can specify dataset specific
             attributes by adding a dictionary with the dataset name as a key.
             e.g. {**global_attrs, dset: {...}}
-        keep_dim_order : bool
+        time_last : bool
             Whether to keep the original dimension order of the data. If
             ``False`` then the data will be transposed to have the time
-            dimension first.
+            dimension first. This defaults to False for H5 output and True for
+            NetCDF output.
         overwrite : bool
             Whether to overwrite existing cache files.
         """
@@ -203,7 +211,7 @@ class Cacher(Container):
                     max_workers=max_workers,
                     mode=mode,
                     attrs=attrs,
-                    keep_dim_order=keep_dim_order,
+                    time_last=time_last,
                     overwrite=overwrite,
                 )
             logger.info('Finished writing %s', missing_files)
@@ -257,14 +265,22 @@ class Cacher(Container):
         return data_var, chunksizes
 
     @classmethod
-    def _prepare_h5_data(cls, data, features, keep_dim_order):
+    def _check_dim_order(cls, data, time_last):
+        """Check dim order and put time first if `time_last` is False."""
+
+        # Transpose time to first dimension for common hdf convention
+        if not time_last and Dimension.TIME in data.dims:
+            if len(data.dims) == 3:
+                data = data.transpose(Dimension.TIME, *Dimension.dims_2d())
+            elif len(data.dims) == 2:
+                data = data.transpose(
+                    Dimension.TIME, Dimension.FLATTENED_SPATIAL
+                )
+        return data
+
+    @classmethod
+    def _prepare_h5_data(cls, data, features):
         """Prepare dataset and feature list for H5 writing."""
-        if (
-            len(data.dims) == 3
-            and Dimension.TIME in data.dims
-            and not keep_dim_order
-        ):
-            data = data.transpose(Dimension.TIME, *Dimension.dims_2d())
 
         if features == 'all':
             features = list(data.data_vars)
@@ -279,15 +295,10 @@ class Cacher(Container):
         return data_subset, features
 
     @classmethod
-    def _set_h5_attributes(cls, f, data_subset, attrs):
-        """Set global attrs and write meta dataset to the open H5 file."""
-        global_attrs = data_subset.attrs.copy()
+    def _set_h5_meta(cls, f, data_subset, attrs):
+        """Get global attrs and write meta dataset to the open H5 file."""
         attrs = attrs or {}
         meta = attrs.pop('meta', {})
-        global_attrs.update(attrs)
-        global_attrs = {k: safe_cast(v) for k, v in global_attrs.items()}
-        for k, v in global_attrs.items():
-            f.attrs[k] = v
 
         if meta is None or (isinstance(meta, dict) and not meta):
             meta_df = pd.DataFrame()
@@ -323,6 +334,19 @@ class Cacher(Container):
         return data_arr, chunksizes, dset_name
 
     @classmethod
+    def _scale_data(cls, data_subset, out_file):
+        """Scale data array based on scale_factor attribute."""
+        for dset in data_subset.data_vars:
+            scale_factor = data_subset[dset].attrs.get('scale_factor', None)
+            if scale_factor is not None and scale_factor != 1:
+                _, ext = os.path.splitext(out_file.replace('.tmp', ''))
+                if ext == '.h5':
+                    data_subset[dset] *= scale_factor
+                else:
+                    data_subset[dset] /= scale_factor
+        return data_subset
+
+    @classmethod
     def write_h5(
         cls,
         out_file,
@@ -332,7 +356,8 @@ class Cacher(Container):
         max_workers=None,
         mode='w',
         attrs=None,
-        keep_dim_order=False,
+        time_last=False,
+        write_coords=True,
     ):
         """Cache data to h5 file using user provided chunks value.
 
@@ -357,25 +382,37 @@ class Cacher(Container):
             attributes by adding a dictionary with the dataset name as a key.
             e.g. {**global_attrs, dset: {...}}. Can also include a global meta
             dataframe that will then be added to the coordinate meta.
-        keep_dim_order : bool
-            Whether to keep the original dimension order of the data. If
-            ``False`` then the data will be transposed to have the time
-            dimension first.
+        time_last : bool
+            Whether to keep time as the last dimension. If ``False`` then the
+            data will be transposed to have the time dimension first.
+        write_coords : bool
+            Whether to write coordinate datasets to file. If this is False
+            only the requested features will be written. Specific coordinates
+            can be written by including them in the features list.
+
         """
         chunks = chunks or 'auto'
 
+        data_subset = cls._check_dim_order(data, time_last)
+
         data_subset, features = cls._prepare_h5_data(
-            data=data,
-            features=features,
-            keep_dim_order=keep_dim_order,
+            data=data_subset, features=features
         )
 
-        coord_names = [
-            crd for crd in data_subset.coords if crd in Dimension.coords_4d()
-        ]
+        coord_names = (
+            [crd for crd in data_subset.coords if crd in Dimension.coords_4d()]
+            if write_coords
+            else []
+        )
 
         with h5py.File(out_file, mode) as f:
-            cls._set_h5_attributes(f, data_subset, attrs)
+            data_subset, global_attrs = cls._set_data_attributes(
+                data_subset, features, attrs
+            )
+            data_subset = cls._scale_data(data_subset, out_file=out_file)
+            cls._set_h5_meta(f, data_subset, attrs)
+            for k, v in global_attrs.items():
+                f.attrs[k] = safe_cast(v)
 
             for dset in [*coord_names, *features]:
                 data_arr, chunksizes, dset_name = cls._get_h5_array_and_chunks(
@@ -388,6 +425,9 @@ class Cacher(Container):
                     shape=data_arr.shape,
                     chunks=chunksizes,
                 )
+                for k, v in data_subset[dset].attrs.items():
+                    dset_obj.attrs[k] = safe_cast(v)
+
                 if max_workers == 1:
                     da.store(data_arr, dset_obj, scheduler='single-threaded')
                 else:
@@ -434,14 +474,12 @@ class Cacher(Container):
         return data_subset, features
 
     @classmethod
-    def _set_netcdf_attributes(cls, data_subset, features, attrs):
-        """Set variable and global attributes for netCDF output."""
+    def _set_data_attributes(cls, data_subset, features, attrs):
+        """Set variable and global attributes for data output."""
 
         attrs = attrs or {}
         for feature in features:
             var_attrs = data_subset[feature].attrs.copy()
-            var_attrs.setdefault('long_name', feature)
-            var_attrs.setdefault('standard_name', feature)
             var_attrs.update(attrs.pop(feature, {}))
             data_subset[feature].attrs.update(var_attrs)
 
@@ -462,7 +500,7 @@ class Cacher(Container):
                 warn(msg)
                 data_subset.attrs[attr_name] = safe_serialize(attr_value)
 
-        return data_subset
+        return data_subset, global_attrs
 
     @classmethod
     def _configure_netcdf_encoding(cls, data_subset, features, chunks):
@@ -471,7 +509,9 @@ class Cacher(Container):
         for feature in features:
             _, chunksizes = cls.get_chunksizes(feature, data_subset, chunks)
             if chunksizes is not None:
-                encoding[feature] = {'chunksizes': chunksizes}
+                encoding[feature] = {
+                    'chunksizes': chunksizes,
+                }
         return encoding
 
     @classmethod
@@ -484,7 +524,7 @@ class Cacher(Container):
         max_workers=1,
         mode='w',
         attrs=None,
-        keep_dim_order=False,  # noqa # pylint: disable=W0613
+        time_last=True,
     ):
         """Cache data to a netcdf file using xarray.
 
@@ -510,16 +550,21 @@ class Cacher(Container):
             Optional attributes to write to file. Can specify dataset specific
             attributes by adding a dictionary with the dataset name as a key.
             e.g. {**global_attrs, dset: {...}}
-        keep_dim_order : bool
-            Dummy arg to match ``write_h5`` signature
+        time_last : bool
+            Whether to keep time as the last dimension. If ``False`` then the
+            data will be transposed to have the time dimension first.
         """
         chunks = chunks or 'auto'
 
+        data_subset = cls._check_dim_order(data, time_last)
+
         data_subset, features = cls._prepare_netcdf_data(
-            data, features, chunks
+            data_subset, features, chunks
         )
 
-        data_subset = cls._set_netcdf_attributes(data_subset, features, attrs)
+        data_subset, _ = cls._set_data_attributes(data_subset, features, attrs)
+
+        data_subset = cls._scale_data(data_subset, out_file=out_file)
 
         encoding = cls._configure_netcdf_encoding(
             data_subset, features, chunks

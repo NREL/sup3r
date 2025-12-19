@@ -10,9 +10,9 @@ import pandas as pd
 from rex.utilities.loggers import init_logger
 from scipy.spatial import KDTree
 
-from sup3r.postprocessing.writers.base import RexOutputs
 from sup3r.preprocessing.utilities import _mem_check
 from sup3r.utilities.utilities import get_dset_attrs, get_tmp_file
+from sup3r.writers import RexOutputs
 
 from .base import BaseCollector
 

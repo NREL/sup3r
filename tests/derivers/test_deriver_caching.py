@@ -6,20 +6,17 @@ import tempfile
 import numpy as np
 import pytest
 
-from sup3r.preprocessing import (
-    Cacher,
-    DataHandler,
-    DataHandlerH5WindCC,
-    Loader,
-)
+from sup3r.preprocessing import DataHandler, DataHandlerH5WindCC, Loader
 from sup3r.utilities.pytest.helpers import make_fake_dset
+from sup3r.writers import Cacher
 
 target = (39.01, -105.15)
 shape = (20, 20)
 features = ['windspeed_100m', 'winddirection_100m']
 
 
-def test_cacher_attrs():
+@pytest.mark.parametrize('ext', ['h5', 'nc'])
+def test_cacher_attrs(ext):
     """Make sure attributes are preserved in cached data."""
     with tempfile.TemporaryDirectory() as td:
         nc = make_fake_dset(shape=(10, 10, 10), features=['ws_100m'])
@@ -35,7 +32,7 @@ def test_cacher_attrs():
         nc.attrs.update(other_attrs)
         tmp_file = td + '/test.nc'
         nc.to_netcdf(tmp_file)
-        cache_pattern = os.path.join(td, 'cached_{feature}.nc')
+        cache_pattern = os.path.join(td, 'cached_{feature}.' + ext)
         DataHandler(
             tmp_file,
             features=['windspeed_100m'],
@@ -43,7 +40,12 @@ def test_cacher_attrs():
             cache_kwargs={
                 'cache_pattern': cache_pattern,
                 'max_workers': 1,
-                'attrs': {'windspeed_100m': {'units': 'm/s'}},
+                'attrs': {
+                    'windspeed_100m': {
+                        'units': 'm/s',
+                        'long_name': 'Wind Speed at 100m',
+                    }
+                },
             },
         )
 
@@ -51,10 +53,11 @@ def test_cacher_attrs():
         assert out.data['windspeed_100m'].attrs == {
             'attrs': 'test',
             'units': 'm/s',
-            'long_name': 'windspeed_100m',
-            'standard_name': 'windspeed_100m',
+            'long_name': 'Wind Speed at 100m'
         }
-        assert out.attrs == {**other_attrs, 'source_files': tmp_file}
+        global_attrs = {**other_attrs, 'source_files': tmp_file}
+        for k, v in global_attrs.items():
+            assert out.attrs[k] == v
 
 
 @pytest.mark.parametrize(
