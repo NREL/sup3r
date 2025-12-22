@@ -423,6 +423,20 @@ class Longitude(DerivedFeature):
         return lon.astype(np.float32)
 
 
+class GriddedTime(DerivedFeature):
+    """Time feature with latitude and longitude dimensions included."""
+
+    @classmethod
+    def compute(cls, data):
+        """Compute method for time."""
+        time = data[Dimension.TIME]
+        time = time.expand_dims(Dimension.SOUTH_NORTH, axis=0)
+        time = np.repeat(time, len(data[Dimension.LATITUDE]), axis=0)
+        time = time.expand_dims(Dimension.WEST_EAST, axis=1)
+        time = np.repeat(time, len(data[Dimension.LONGITUDE]), axis=1)
+        return time.astype(np.float32)
+
+
 RegistryBase = {
     'u_(.*)': UWind,
     'v_(.*)': VWind,
@@ -434,6 +448,7 @@ RegistryBase = {
     'sza': Sza,
     'latitude_feature': Latitude,
     'longitude_feature': Longitude,
+    'time_feature': GriddedTime
 }
 
 RegistryH5WindCC = {
