@@ -456,10 +456,10 @@ class SpatioTemporalEncoding(DerivedFeature):
             Scaling factor for encoding. Defaults to 10000.
         """
         dims = list(data.dims)
-        for d_ in range(len(dims)):
+        for d_, dim in enumerate(dims):
             if d_ not in k_dims:
-                k = k.expand_dims(dims[d_], axis=d_)
-                k = np.repeat(k, len(data[dims[d_]]), axis=d_)
+                k = k.expand_dims(dim, axis=d_)
+                k = np.repeat(k, len(data[dim]), axis=d_)
         k = k / omega ** (2 * i / d)
         k = np.sin(k) if i % 2 == 0 else np.cos(k)
         return k.astype(np.float32)
