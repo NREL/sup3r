@@ -423,18 +423,69 @@ class Longitude(DerivedFeature):
         return lon.astype(np.float32)
 
 
-class GriddedTime(DerivedFeature):
-    """Time feature with latitude and longitude dimensions included."""
+class SpatioTemporalEncoding(DerivedFeature):
+    """General positional or temporal encoding.
+
+    References
+    ----------
+    .. [cong2022] Cong, Yezhen, et al. "Satmae: Pre-training transformers for
+    temporal and multi-spectral satellite imagery." Advances in Neural
+    Information Processing Systems 35 (2022): 197-211.
+    """
 
     @classmethod
-    def compute(cls, data):
+    def _compute(cls, data, k, k_dims, d, i=1, omega=10000):
+        """Compute method for encoding.
+
+        Parameters
+        ----------
+        data : Union[Sup3rX, Sup3rDataset]
+            Initialized and standardized through a :class:`DataHandler`
+        k : xr.DataArray
+            Array of values to encode. e.g. hour of the year, hour of the day,
+            latitude, longitude, etc.
+        k_dims : tuple
+            Dimension(s) along which k varies. k will be expanded and repeated
+            along other dimensions.
+        d : int
+            Number of possible values of k.
+        i : int, optional
+            Index of encoding output. Defaults to 1. Increasing i reduces the
+            frequency of oscillation of the sine/cosine encoding.
+        omega : int, optional
+            Scaling factor for encoding. Defaults to 10000.
+        """
+        dims = list(data.dims)
+        for d_ in range(len(dims)):
+            if d_ not in k_dims:
+                k = k.expand_dims(dims[d_], axis=d_)
+                k = np.repeat(k, len(data[dims[d_]]), axis=d_)
+        k = k / omega ** (2 * i / d)
+        k = np.sin(k) if i % 2 == 0 else np.cos(k)
+        return k.astype(np.float32)
+
+
+class HourOfDayEncoding(SpatioTemporalEncoding):
+    """Hour of day time encoding with latitude and longitude dimensions
+    included."""
+
+    @classmethod
+    def compute(cls, data, i=1):
         """Compute method for time."""
-        time = data[Dimension.TIME]
-        time = time.expand_dims(Dimension.SOUTH_NORTH, axis=0)
-        time = np.repeat(time, len(data[Dimension.LATITUDE]), axis=0)
-        time = time.expand_dims(Dimension.WEST_EAST, axis=1)
-        time = np.repeat(time, len(data[Dimension.LONGITUDE]), axis=1)
-        return time.astype(np.float32)
+        hod = data[Dimension.TIME].dt.hour
+        return cls._compute(data, hod, k_dims=(2,), d=24, i=i)
+
+
+class HourOfYearEncoding(SpatioTemporalEncoding):
+    """Hour of year time encoding with latitude and longitude dimensions
+    included."""
+
+    @classmethod
+    def compute(cls, data, i=1):
+        """Compute method for time."""
+        doy = data[Dimension.TIME].dt.dayofyear
+        hoy = (doy - 1) * 24 + data[Dimension.TIME].dt.hour
+        return cls._compute(data, hoy, k_dims=(2,), d=8784, i=i)
 
 
 RegistryBase = {
@@ -448,7 +499,8 @@ RegistryBase = {
     'sza': Sza,
     'latitude_feature': Latitude,
     'longitude_feature': Longitude,
-    'time_feature': GriddedTime
+    'hoy_encoding': HourOfYearEncoding,
+    'hod_encoding': HourOfDayEncoding,
 }
 
 RegistryH5WindCC = {
