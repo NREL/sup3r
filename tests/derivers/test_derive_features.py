@@ -9,8 +9,8 @@ features = [
     'winddirection_100m',
     'latitude_feature',
     'longitude_feature',
-    'hod_encoding',
-    'hoy_encoding',
+    'soy_encoding',
+    'sod_encoding',
 ]
 
 
