@@ -423,6 +423,84 @@ class Longitude(DerivedFeature):
         return lon.astype(np.float32)
 
 
+class SpatioTemporalEncoding(DerivedFeature):
+    """General positional or temporal encoding.
+
+    References
+    ----------
+    .. [cong2022] Cong, Yezhen, et al. "Satmae: Pre-training transformers for
+    temporal and multi-spectral satellite imagery." Advances in Neural
+    Information Processing Systems 35 (2022): 197-211.
+
+    Note
+    ----
+    We use the referenced paper for inspiration but modify the argument of the
+    trig functions to be 2πi * k / d so the periodicity matches the underlying
+    feature (e.g. hour of day repeats every 24 hours).
+    """
+
+    @classmethod
+    def _compute(cls, data, k, k_dims, d, i=0):
+        """Compute method for encoding.
+
+        Parameters
+        ----------
+        data : Union[Sup3rX, Sup3rDataset]
+            Initialized and standardized through a :class:`DataHandler`
+        k : xr.DataArray
+            Array of values to encode. e.g. hour of the year, hour of the day,
+            latitude, longitude, etc.
+        k_dims : tuple
+            Dimension(s) along which k varies. k will be expanded and repeated
+            along other dimensions.
+        d : int
+            Number of possible values of k.
+        i : int, optional
+            Index of encoding output. Defaults to 0. Increasing i increases the
+            frequency of oscillation of the sine/cosine encoding.
+        """
+        dims = list(data.dims)
+        for d_, dim in enumerate(dims):
+            if d_ not in k_dims:
+                k = k.expand_dims(dim, axis=d_)
+                k = np.repeat(k, len(data[dim]), axis=d_)
+        k = (2 * np.pi * (i + 1) * k / d)
+        k = np.sin(k) if i % 2 == 0 else np.cos(k)
+        return k.astype(np.float32)
+
+
+class SecondOfDayEncoding(SpatioTemporalEncoding):
+    """Second of day time encoding with latitude and longitude dimensions
+    included."""
+
+    @classmethod
+    def compute(cls, data, i=1):
+        """Compute method for encoding."""
+        sod = (
+            data[Dimension.TIME].dt.hour * 3600
+            + data[Dimension.TIME].dt.minute * 60
+            + data[Dimension.TIME].dt.second
+        )
+        return cls._compute(data, sod, k_dims=(2,), d=86400, i=i)
+
+
+class SecondOfYearEncoding(SpatioTemporalEncoding):
+    """Second of year time encoding with latitude and longitude dimensions
+    included."""
+
+    @classmethod
+    def compute(cls, data, i=1):
+        """Compute method for encoding."""
+        doy = data[Dimension.TIME].dt.dayofyear
+        soy = (
+            (doy - 1) * 86400
+            + data[Dimension.TIME].dt.hour * 3600
+            + data[Dimension.TIME].dt.minute * 60
+            + data[Dimension.TIME].dt.second
+        )
+        return cls._compute(data, soy, k_dims=(2,), d=31536000, i=i)
+
+
 RegistryBase = {
     'u_(.*)': UWind,
     'v_(.*)': VWind,
@@ -434,6 +512,8 @@ RegistryBase = {
     'sza': Sza,
     'latitude_feature': Latitude,
     'longitude_feature': Longitude,
+    'soy_encoding': SecondOfYearEncoding,
+    'sod_encoding': SecondOfDayEncoding,
 }
 
 RegistryH5WindCC = {
