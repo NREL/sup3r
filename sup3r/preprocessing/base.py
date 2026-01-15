@@ -24,6 +24,7 @@ from sup3r.preprocessing.utilities import (
     composite_info,
     is_type_of,
 )
+from sup3r.utilities.utilities import Timer
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ class Sup3rMeta(ABCMeta, type):
     kwargs as ``*args`` / ``**kwargs`` or those built through factory
     composition, for example."""
 
-    def __new__(mcs, name, bases, namespace, **kwargs):  # noqa: N804
+    def __new__(mcs, name, bases, namespace, **kwargs):
         """Define __name__ and __signature__"""
         sig, doc = _get_class_info(namespace)
         name = namespace.get('__name__', name)
@@ -318,7 +319,7 @@ class Container(metaclass=Sup3rMeta):
     ``Sup3rX`` objects (:class:`.Sup3rDataset`), or a tuple of such objects.
     """
 
-    __slots__ = ['_data']
+    __slots__ = ['_data', 'timer']
 
     def __init__(
         self,
@@ -353,6 +354,7 @@ class Container(metaclass=Sup3rMeta):
             :class:`~.samplers.DualSampler`, and a 1-tuple otherwise.
         """
         self.data = data
+        self.timer = Timer()
 
     @property
     def data(self):

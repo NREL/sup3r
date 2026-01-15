@@ -1230,11 +1230,18 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         with tf.device(device_name), tf.GradientTape(
             watch_accessed_variables=False
         ) as tape:
-            tape.watch(training_weights)
-            loss, loss_details, _, _ = self._get_hr_exo_and_loss(
-                low_res, hi_res_true, **calc_loss_kwargs
-            )
-            grad = tape.gradient(loss, training_weights)
+            try:
+                tape.watch(training_weights)
+                loss, loss_details, _, _ = self._get_hr_exo_and_loss(
+                    low_res, hi_res_true, **calc_loss_kwargs
+                )
+                grad = tape.gradient(loss, training_weights)
+            except Exception as e:
+                msg = 'Error computing gradients on device {}: {}'.format(
+                    device_name, e
+                )
+                logger.error(msg)
+                raise RuntimeError(msg) from e
         return grad, loss_details
 
     @abstractmethod
