@@ -119,6 +119,26 @@ def test_proxy_obs_fraction_bounds_with_ranges(sampler_cls):
 
 
 @pytest.mark.parametrize('sampler_cls', [Sampler, DualSampler])
+def test_proxy_obs_sample_range(sampler_cls):
+    """Proxy observations should be restricted to the configured interval."""
+    sampler = _make_sampler(
+        sampler_cls=sampler_cls,
+        hr_shape=(20, 20, 240),
+        sample_shape=(10, 10, 24),
+        batch_size=4,
+        proxy_obs_kwargs={
+            'onshore_obs_frac': {'spatial': 1.0, 'temporal': 1.0},
+            'sample_range': (0, 12),
+        },
+    )
+
+    obs = _get_hr_batch(sampler)[..., -2:]
+
+    assert np.isfinite(obs[..., :12, :]).all()
+    assert np.isnan(obs[..., 12:, :]).all()
+
+
+@pytest.mark.parametrize('sampler_cls', [Sampler, DualSampler])
 def test_proxy_obs_onshore_offshore_topography_fractions(sampler_cls):
     """Onshore and offshore obs fractions are applied by topography mask."""
     sampler = _make_sampler(
