@@ -83,14 +83,16 @@ class Sampler(Container):
             Optional dictionary of keyword arguments to pass to the proxy
             observation generator. This is only used when training with proxy
             observations. Top-level keys (``onshore_obs_frac``,
-            ``offshore_obs_frac``, ``perturbation_scale``) apply to all obs
-            features as defaults. A source-feature-named sub-dict (keyed by
-            the gridded feature name, e.g. ``u_100m`` for ``u_100m_obs``)
-            overrides any of those keys for that specific feature::
+            ``offshore_obs_frac``, ``perturbation_scale``, ``sample_range``)
+            apply to all obs features as defaults. A source-feature-named
+            sub-dict (keyed by the gridded feature name, e.g. ``u_100m`` for
+            ``u_100m_obs``) overrides any of those keys for that specific
+            feature::
 
                 proxy_obs_kwargs = {
                     'onshore_obs_frac': {'spatial': [0.3, 0.7], 'temporal': 1},
                     'perturbation_scale': 0.01,
+                    'sample_range': (0, 12),
                     'u_100m': {
                         'onshore_obs_frac': {'spatial': 0.9},
                         'perturbation_scale': 0.05,
@@ -107,6 +109,11 @@ class Sampler(Container):
             offshore_obs_frac : dict
                 Same as ``onshore_obs_frac`` but applied where topography
                 <= 0. Ignored when topography is not a source feature.
+            sample_range : tuple[int, int]
+                Start and stop indices of the temporal sample interval where
+                observations may be supplied. The stop index is exclusive.
+                For example, ``(0, 12)`` restricts observations to the first
+                half of a sample with 24 time steps.
         mode : str
             Mode for sampling data. Options are 'lazy' or 'eager'. 'eager' mode
             pre-loads all data into memory as numpy arrays for faster access.
@@ -484,16 +491,16 @@ class Sampler(Container):
             (batch_size, s1, s2, t, n_obs_features).
         """
         proxy = self._get_proxy_obs(hi_res)
-        if not self.real_obs_features:
-            return proxy
-
         merged = proxy.copy()
         for i, feat in enumerate(self.obs_features):
-            if feat in self.real_obs_features:
+            if self.real_obs_features and feat in self.real_obs_features:
                 real_ind = self.hr_sample_features.index(feat)
                 real_vals = hi_res[..., real_ind]
                 valid = ~np.isnan(real_vals)
                 merged[..., i] = np.where(valid, real_vals, proxy[..., i])
+            start, stop = self._get_proxy_sample_range(feat)
+            merged[..., :start, i] = np.nan
+            merged[..., stop:, i] = np.nan
         return merged
 
     def __next__(self):
@@ -678,6 +685,34 @@ class Sampler(Container):
         if key in feat_overrides:
             return feat_overrides[key]
         return self.proxy_obs_kwargs.get(key, default)
+
+    def _get_proxy_sample_range(self, feat):
+        """Get and validate the eligible temporal range for proxy obs."""
+        n_time = self.sample_shape[2]
+        sample_range = self._get_proxy_kwarg(
+            'sample_range', feat, (0, n_time)
+        )
+        valid_type = isinstance(sample_range, (list, tuple))
+        valid_length = valid_type and len(sample_range) == 2
+        valid_values = valid_length and all(
+            isinstance(value, (int, np.integer)) for value in sample_range
+        )
+        if not valid_values:
+            msg = (
+                'proxy_obs_kwargs sample_range must contain two integer '
+                f'indices, but received {sample_range} for {feat}.'
+            )
+            raise ValueError(msg)
+
+        start, stop = map(int, sample_range)
+        if not 0 <= start < stop <= n_time:
+            msg = (
+                'proxy_obs_kwargs sample_range must satisfy '
+                f'0 <= start < stop <= {n_time}, but received '
+                f'{sample_range} for {feat}.'
+            )
+            raise ValueError(msg)
+        return start, stop
 
     def _get_obs_mask(self, hi_res, spatial_frac, time_frac=1.0):
         """Get observation mask for a given spatial and time obs fraction for
