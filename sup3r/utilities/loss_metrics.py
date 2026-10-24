@@ -1282,9 +1282,13 @@ class GeothermalNonnegativeHeatProductionLoss(Sup3rLoss):
         """
         temperature = tf.gather(x_gen, self.t_inds, axis=-1)
         conductivity = tf.gather(x_gen, self.k_inds, axis=-1) * 1000
-        if x_gen.shape.rank == 5:
-            temperature = tf.transpose(temperature, [0, 1, 2, 4, 3])
-            conductivity = tf.transpose(conductivity, [0, 1, 2, 4, 3])
+        shape = tf.shape(temperature)
+        temperature = _reshape_depth_feature_for_vertical_derivative(
+            temperature
+        )
+        conductivity = _reshape_depth_feature_for_vertical_derivative(
+            conductivity
+        )
 
         divergence = tf.zeros_like(temperature)
         for axis, spacing in ((1, self.dy), (2, self.dx), (3, self.dz)):
@@ -1295,7 +1299,11 @@ class GeothermalNonnegativeHeatProductionLoss(Sup3rLoss):
             )
 
         if x_gen.shape.rank == 5:
-            divergence = tf.transpose(divergence, [0, 1, 2, 4, 3])
+            divergence = tf.reshape(
+                divergence,
+                (shape[0], shape[3], shape[1], shape[2], shape[4]),
+            )
+            divergence = tf.transpose(divergence, [0, 2, 3, 1, 4])
         return -divergence
 
     @tf.function
@@ -1762,7 +1770,7 @@ class ObsAssimilationLoss(Sup3rLoss):
 
 
 def _reshape_depth_feature_for_vertical_derivative(x):
-    """Reshape a stacked depth tensor for use with tf_derivative.
+    """Reshape a depth tensor for tf_derivative, preserving spatial neighbors.
 
     Parameters
     ----------
@@ -1775,13 +1783,14 @@ def _reshape_depth_feature_for_vertical_derivative(x):
     tf.Tensor
         4D Tensor where the last three dimensions are
         (s1, s2, depth). First dimension is either ``n_obs`` or
-        ``n_obs * time``.
+        ``n_obs * time``, with time slices grouped within each observation.
     """
     if len(x.shape) == 4:
         return x
 
     if len(x.shape) == 5:
         shape = tf.shape(x)
+        x = tf.transpose(x, [0, 3, 1, 2, 4])
         return tf.reshape(
             x, (shape[0] * shape[3], shape[1], shape[2], shape[4])
         )

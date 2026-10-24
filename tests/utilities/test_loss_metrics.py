@@ -23,6 +23,7 @@ from sup3r.utilities.loss_metrics import (
     SpatialExtremesLoss,
     SpatiotemporalFftLoss,
     TemporalExtremesLoss,
+    _reshape_depth_feature_for_vertical_derivative,
     tf_derivative,
 )
 from sup3r.utilities.utilities import (
@@ -530,6 +531,25 @@ def test_geothermal_surface_heat_flux_invalid_rank(shape):
         GeothermalSurfaceHeatFluxLoss()(predictions, predictions)
 
 
+@pytest.mark.parametrize('n_times', [None, 1, 3])
+def test_reshape_depth_feature_for_vertical_derivative(n_times):
+    """Preserve each observation's spatial grid and ordered time slices."""
+    shape = (2, 3, 4, 5) if n_times is None else (2, 3, 4, n_times, 5)
+    values = np.arange(np.prod(shape), dtype=np.float32).reshape(shape)
+    expected = values
+    if n_times is not None:
+        expected = np.stack(
+            [
+                values[observation, :, :, time, :]
+                for observation in range(shape[0])
+                for time in range(n_times)
+            ]
+        )
+    reshape = tf.function(_reshape_depth_feature_for_vertical_derivative)
+    actual = reshape(tf.constant(values))
+    np.testing.assert_array_equal(actual, expected)
+
+
 @pytest.mark.parametrize('axis', [0, 1, 2])
 @pytest.mark.parametrize('conductivity_slope', [-0.001, 0.0, 0.001])
 def test_geothermal_nonnegative_production_loss(axis, conductivity_slope):
@@ -570,6 +590,8 @@ def test_geothermal_nonnegative_production_divergence(n_times):
     conductivity = 20 - 0.001 * north + 0.002 * east - 0.002 * depth
     predictions = np.stack([temperature, conductivity], axis=-1)
     predictions = predictions.reshape(1, 5, 5, -1)
+    predictions = np.repeat(predictions, 2, axis=0)
+    predictions[1, ..., ::2] *= 2
     if n_times is not None:
         predictions = np.repeat(predictions[..., None, :], n_times, axis=3)
         predictions[..., ::2] *= np.arange(1, n_times + 1)[
@@ -577,7 +599,8 @@ def test_geothermal_nonnegative_production_divergence(n_times):
         ]
 
     production = loss_obj._compute_heat_production(tf.constant(predictions))
-    expected = np.full((1, 5, 5, 5), 0.01, dtype=np.float32)
+    expected = np.full((2, 5, 5, 5), 0.01, dtype=np.float32)
+    expected[1] *= 2
     if n_times is not None:
         expected = np.repeat(expected[..., None, :], n_times, axis=3)
         expected *= np.arange(1, n_times + 1)[None, None, None, :, None]
