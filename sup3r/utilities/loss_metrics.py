@@ -1197,6 +1197,143 @@ class GeothermalSurfaceHeatFluxLoss(Sup3rLoss):
         return self.LOSS_METRIC(tf.zeros_like(residual), residual)
 
 
+class GeothermalNonnegativeHeatProductionLoss(Sup3rLoss):
+    """Compatibility with nonnegative heat production under steady conduction.
+
+    Infer heat production as ``H = -div(k * grad(T))`` and penalize
+    ``max(-H, 0)`` with mean squared error. This permits any nonnegative
+    source; it does not assume zero production or constrain its magnitude.
+    The full three-dimensional divergence includes variable conductivity.
+
+    Temperature is in C, conductivity in W/m-K, and grid spacing in m.
+    Conductivity is converted to mW/m-K, giving inferred production in
+    mW/m^3. This is a steady, isotropic, conduction-only prior; advection
+    and transient heat storage are not represented. Conductivity must be
+    constrained to physical values separately. No heat-flux channel or
+    observed heat-production data is required.
+    """
+
+    LOSS_METRIC = MeanSquaredError()
+
+    def __init__(
+        self,
+        dx,
+        dy,
+        depths=range(0, 8000, 1000),
+        temperature_prefix='t',
+        thermal_conductivity_prefix='k',
+    ):
+        """Initialize the nonnegative heat-production loss.
+
+        Parameters
+        ----------
+        dx : float
+            Finite, positive spacing along spatial axis 2 in m.
+        dy : float
+            Finite, positive spacing along spatial axis 1 in m.
+        depths : iterable of int, optional
+            At least three distinct, finite, nonnegative depth levels in m.
+            Levels are sorted and must be uniformly spaced, but need not
+            start at the surface. Each requires temperature and conductivity.
+        temperature_prefix : str, optional
+            Prefix for temperature features named ``<prefix>_<depth>m``.
+        thermal_conductivity_prefix : str, optional
+            Prefix for conductivity features named ``<prefix>_<depth>m``.
+        """
+        assert np.isfinite(dx) and dx > 0, 'dx must be finite and positive.'
+        assert np.isfinite(dy) and dy > 0, 'dy must be finite and positive.'
+        depths = self._validate_depths(depths)
+        self.dx, self.dy = float(dx), float(dy)
+        self.dz = float(depths[1] - depths[0])
+        self.t_inds, self.k_inds = [], []
+        gen_features = []
+        for depth in depths:
+            self.t_inds.append(len(gen_features))
+            gen_features.append(f'{temperature_prefix}_{depth}m')
+            self.k_inds.append(len(gen_features))
+            gen_features.append(f'{thermal_conductivity_prefix}_{depth}m')
+        super().__init__(gen_features=gen_features, true_features=None)
+
+    @staticmethod
+    def _validate_depths(depths):
+        """Validate depth levels for the vertical second derivative."""
+        depths = sorted(depths)
+        assert len(depths) >= 3, (
+            'GeothermalNonnegativeHeatProductionLoss requires at least '
+            'three depths.'
+        )
+        assert np.all(np.isfinite(depths)) and depths[0] >= 0, (
+            'GeothermalNonnegativeHeatProductionLoss requires finite, '
+            'nonnegative depths.'
+        )
+        steps = np.diff(depths)
+        assert np.all(steps > 0) and np.allclose(steps, steps[0]), (
+            'GeothermalNonnegativeHeatProductionLoss requires distinct, '
+            'uniformly spaced depths.'
+        )
+        return depths
+
+    def _compute_heat_production(self, x_gen):
+        """Infer production in mW/m^3, keeping depth as the last output axis.
+
+        Apply tf_derivative to temperature and then to each conductivity-
+        weighted gradient. Each pass uses centered interior differences
+        and first-order one-sided boundary differences.
+        """
+        temperature = tf.gather(x_gen, self.t_inds, axis=-1)
+        conductivity = tf.gather(x_gen, self.k_inds, axis=-1) * 1000
+        if x_gen.shape.rank == 5:
+            temperature = tf.transpose(temperature, [0, 1, 2, 4, 3])
+            conductivity = tf.transpose(conductivity, [0, 1, 2, 4, 3])
+
+        divergence = tf.zeros_like(temperature)
+        for axis, spacing in ((1, self.dy), (2, self.dx), (3, self.dz)):
+            spacing = tf.cast(spacing, temperature.dtype)
+            gradient = tf_derivative(temperature, axis=axis) / spacing
+            divergence += (
+                tf_derivative(conductivity * gradient, axis=axis) / spacing
+            )
+
+        if x_gen.shape.rank == 5:
+            divergence = tf.transpose(divergence, [0, 1, 2, 4, 3])
+        return -divergence
+
+    @tf.function
+    def call(self, __, x_gen):
+        """Evaluate mean squared negative-production violations.
+
+        Parameters
+        ----------
+        x_true : tf.tensor
+            Ground truth data (unused).
+        x_gen : tf.tensor
+            Predictions ordered according to ``gen_features``, shaped
+            (n_observations, spatial_1, spatial_2, features) or
+            (n_observations, spatial_1, spatial_2, temporal, features).
+            Both spatial axes must have at least three grid points.
+            Time slices are evaluated independently.
+
+        Returns
+        -------
+        tf.tensor
+            Scalar loss in squared mW/m^3 units.
+        """
+        msg = (
+            f'The {self.__class__.__name__} is meant to be used on spatial '
+            'or spatiotemporal data only. Received tensor(s) that are not '
+            '4D or 5D'
+        )
+        x_gen = _assert_rank_in(x_gen, (4, 5), msg)
+        tf.debugging.assert_greater_equal(
+            tf.shape(x_gen)[1:3],
+            3,
+            message='Heat production requires at least three spatial points.',
+        )
+        production = self._compute_heat_production(x_gen)
+        residual = tf.nn.relu(-production)
+        return self.LOSS_METRIC(tf.zeros_like(residual), residual)
+
+
 class GeothermalPositiveTemperatureGradientLoss(Sup3rLoss):
     """Positive geothermal gradient loss
 
