@@ -892,12 +892,15 @@ class MaterialDerivativeLoss(Sup3rLoss):
         x_true = _assert_rank_in(x_true, (5,), msg)
         x_gen = _assert_rank_in(x_gen, (5,), msg)
 
-        x_true_div = tf.stack([
-            self._compute_md(x_true, feature) for feature in self.gen_features
-        ])
-        x_gen_div = tf.stack([
-            self._compute_md(x_gen, feature) for feature in self.gen_features
-        ])
+        x_true_div = tf.stack(
+            [
+                self._compute_md(x_true, feature)
+                for feature in self.gen_features
+            ]
+        )
+        x_gen_div = tf.stack(
+            [self._compute_md(x_gen, feature) for feature in self.gen_features]
+        )
 
         return self.LOSS_METRIC(x_true_div, x_gen_div)
 
