@@ -1012,9 +1012,9 @@ class GeothermalConductiveHeatTransferLoss(Sup3rLoss):
 
     def _get_feature_tensors(self, x):
         """Extract temperature, surface heat-flow, and conductivity tensors"""
-        t = tf.stack([x[..., i] for i in self.t_inds], axis=-1)
-        q = tf.stack([x[..., i] for i in self.q_inds], axis=-1)
-        k = tf.stack([x[..., i] for i in self.k_inds], axis=-1)
+        t = tf.gather(x, self.t_inds, axis=-1)
+        q = tf.gather(x, self.q_inds, axis=-1)
+        k = tf.gather(x, self.k_inds, axis=-1)
         return t, q, k
 
     def _compute_heat_transfer_residual(self, x):
@@ -1147,7 +1147,7 @@ class GeothermalPositiveTemperatureGradientLoss(Sup3rLoss):
         the vertical temperature difference, so the finite difference is not
         normalized by depth spacing.
         """
-        t = tf.stack([x[..., i] for i in self.t_inds], axis=-1)
+        t = tf.gather(x, self.t_inds, axis=-1)
         t = _reshape_depth_feature_for_vertical_derivative(t)
 
         # Not a true derivative (missing divide by dz), but we only care
