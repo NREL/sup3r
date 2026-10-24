@@ -1090,6 +1090,113 @@ class GeothermalConductiveHeatTransferLoss(Sup3rLoss):
         return self.LOSS_METRIC(tf.zeros_like(expr), expr)
 
 
+class GeothermalSurfaceHeatFluxLoss(Sup3rLoss):
+    """Surface Fourier-law consistency for geothermal predictions.
+
+    Penalize ``1000 * k_0 * (t_1 - t_0) / dz - q_0`` with mean squared
+    error. Depth is positive downward and surface heat flux is positive
+    upward. Temperature is in C, conductivity in W/m-K, and heat flux in
+    mW/m^2. The factor of 1000 converts conductivity to mW/m-K.
+
+    Only the two shallowest temperature channels, surface conductivity,
+    and surface heat flux are required. This loss does not constrain
+    interior heat production or horizontal conductive flux.
+    """
+
+    LOSS_METRIC = MeanSquaredError()
+
+    def __init__(
+        self,
+        depths=(0, 1000),
+        temperature_prefix='t',
+        heat_flux_prefix='q',
+        thermal_conductivity_prefix='k',
+    ):
+        """Initialize the surface heat-flux loss.
+
+        Parameters
+        ----------
+        depths : iterable of int, optional
+            Distinct, finite, nonnegative depth levels in m, including 0 m
+            and at least one deeper level. The two shallowest levels are
+            used for a first-order forward difference at the surface.
+            Additional levels do not require additional feature channels.
+        temperature_prefix : str, optional
+            Prefix for temperature features named ``<prefix>_<depth>m``.
+        heat_flux_prefix : str, optional
+            Prefix for the surface heat-flux feature ``<prefix>_0m``.
+        thermal_conductivity_prefix : str, optional
+            Prefix for the surface conductivity feature ``<prefix>_0m``.
+        """
+        depths = self._validate_depths(depths)
+        self.dz = float(depths[1] - depths[0])
+        self.t_inds, self.k_inds, self.q_inds = [0, 1], [2], [3]
+        gen_features = [
+            f'{temperature_prefix}_{depth}m' for depth in depths[:2]
+        ]
+        gen_features.extend(
+            [
+                f'{thermal_conductivity_prefix}_0m',
+                f'{heat_flux_prefix}_0m',
+            ]
+        )
+        super().__init__(gen_features=gen_features, true_features=None)
+
+    @staticmethod
+    def _validate_depths(depths):
+        """Validate depth input"""
+        depths = sorted(depths)
+        assert len(depths) >= 2, (
+            'GeothermalSurfaceHeatFluxLoss requires at least two depths.'
+        )
+        assert np.all(np.isfinite(depths)) and depths[0] == 0, (
+            'GeothermalSurfaceHeatFluxLoss requires finite, nonnegative '
+            'depths starting at 0 m.'
+        )
+        assert np.all(np.diff(depths) > 0), (
+            'GeothermalSurfaceHeatFluxLoss requires distinct depth levels.'
+        )
+
+        return depths
+
+    def _compute_surface_heat_flux_residual(self, x_gen):
+        """Compute the surface residual in mW/m^2 without time reshaping."""
+        temperature = tf.gather(x_gen, self.t_inds, axis=-1)
+        conductivity = tf.gather(x_gen, self.k_inds, axis=-1) * 1000
+        heat_flux = tf.gather(x_gen, self.q_inds, axis=-1)
+        gradient = (temperature[..., 1:] - temperature[..., :1]) / tf.cast(
+            self.dz, x_gen.dtype
+        )
+        return conductivity * gradient - heat_flux
+
+    @tf.function
+    def call(self, __, x_gen):
+        """Evaluate mean squared surface heat-flux residual.
+
+        Parameters
+        ----------
+        x_true : tf.tensor
+            Ground truth data (unused).
+        x_gen : tf.tensor
+            Predictions ordered according to ``gen_features``, shaped
+            (n_observations, spatial_1, spatial_2, features) or
+            (n_observations, spatial_1, spatial_2, temporal, features).
+
+        Returns
+        -------
+        tf.tensor
+            Scalar loss in squared mW/m^2 units.
+        """
+        msg = (
+            f'The {self.__class__.__name__} is meant to be used on spatial '
+            'or spatiotemporal data only. Received tensor(s) that are not '
+            '4D or 5D'
+        )
+        x_gen = _assert_rank_in(x_gen, (4, 5), msg)
+        residual = self._compute_surface_heat_flux_residual(x_gen)
+        return self.LOSS_METRIC(tf.zeros_like(residual), residual)
+
+
 class GeothermalPositiveTemperatureGradientLoss(Sup3rLoss):
     """Positive geothermal gradient loss
 

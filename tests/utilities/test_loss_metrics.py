@@ -14,6 +14,7 @@ from sup3r.utilities.loss_metrics import (
     GeothermalConductiveHeatTransferLoss,
     GeothermalMohoBCLoss,
     GeothermalPositiveTemperatureGradientLoss,
+    GeothermalSurfaceHeatFluxLoss,
     LowResLoss,
     MaterialDerivativeLoss,
     MmdLoss,
@@ -458,6 +459,74 @@ def test_geothermal_heat_transfer_loss_errors():
     )
     with pytest.raises(ValueError):
         loss_obj(np.zeros((2, 4, 6)), np.zeros((2, 4, 6)))
+
+
+@pytest.mark.parametrize('shape', [(2, 4, 5), (2, 4, 5, 1), (2, 4, 5, 3)])
+def test_geothermal_surface_heat_flux_loss(shape):
+    """Check surface flux units, signs, and independence of lateral slopes."""
+    loss_obj = GeothermalSurfaceHeatFluxLoss()
+    coordinates = np.arange(np.prod(shape), dtype=np.float32).reshape(shape)
+    surface_temperature = 10 + coordinates / 2
+    deep_temperature = surface_temperature + 20
+    conductivity = 2 + coordinates / 100
+    heat_flux = conductivity * 20
+    predictions = np.stack(
+        [surface_temperature, deep_temperature, conductivity, heat_flux],
+        axis=-1,
+    )
+    assert np.isclose(
+        loss_obj(np.zeros_like(predictions), predictions), 0, atol=1e-8
+    )
+
+    for offset in (-25.0, 25.0):
+        perturbed = predictions.copy()
+        perturbed[..., -1] += offset
+        assert np.isclose(
+            loss_obj(np.zeros_like(perturbed), perturbed), offset**2
+        )
+
+
+def test_geothermal_surface_heat_flux_features_and_gradients():
+    """Check feature selection, depth spacing, and trainable residuals."""
+    loss_obj = GeothermalSurfaceHeatFluxLoss(
+        depths=[3000, 0, 500],
+        temperature_prefix='temperature',
+        heat_flux_prefix='flux',
+        thermal_conductivity_prefix='conductivity',
+    )
+    assert loss_obj.gen_features == [
+        'temperature_0m',
+        'temperature_500m',
+        'conductivity_0m',
+        'flux_0m',
+    ]
+    assert loss_obj.true_features == loss_obj.gen_features
+    predictions = tf.Variable([[[[10.0, 20.0, 2.0, 50.0]]]])
+    with tf.GradientTape() as tape:
+        loss = loss_obj(tf.zeros_like(predictions), predictions)
+    gradients = tape.gradient(loss, predictions)
+    assert np.isclose(loss, 100)
+    assert gradients is not None
+    assert np.all(np.isfinite(gradients))
+    assert np.all(gradients.numpy() != 0)
+
+
+@pytest.mark.parametrize(
+    'depths',
+    [[], [0], [1000, 2000], [-1000, 0], [0, 0], [0, np.nan], [0, np.inf]],
+)
+def test_geothermal_surface_heat_flux_invalid_depths(depths):
+    """Reject depths that cannot define a finite surface derivative."""
+    with pytest.raises(AssertionError):
+        GeothermalSurfaceHeatFluxLoss(depths=depths)
+
+
+@pytest.mark.parametrize('shape', [(2, 4, 4), (2, 4, 5, 1, 1, 4)])
+def test_geothermal_surface_heat_flux_invalid_rank(shape):
+    """Require spatial or spatiotemporal feature tensors."""
+    predictions = np.zeros(shape, dtype=np.float32)
+    with pytest.raises(ValueError, match='4D or 5D'):
+        GeothermalSurfaceHeatFluxLoss()(predictions, predictions)
 
 
 def test_geothermal_temp_grad_loss_depth_intersection_and_errors():
