@@ -1132,6 +1132,7 @@ class GeothermalPositiveTemperatureGradientLoss(Sup3rLoss):
 
     @staticmethod
     def _validate_depths(depths):
+        """Validate depth input"""
         depths = list(depths)
 
         msg = (
