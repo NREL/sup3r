@@ -11,7 +11,6 @@ from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rGan
 from sup3r.utilities.loss_metrics import (
     CoarseMseLoss,
-    GeothermalConductiveHeatTransferLoss,
     GeothermalMohoBCLoss,
     GeothermalNonnegativeHeatProductionLoss,
     GeothermalPositiveTemperatureGradientLoss,
@@ -368,99 +367,6 @@ def test_multiterm_loss():
     loss, _ = multi_loss(x, y)
 
     assert np.allclose(0.2 * md_loss(x, y) + 0.8 * mae_loss(x, y), loss)
-
-
-def test_geothermal_heat_transfer_loss_depth_intersection_and_errors():
-    """Test geothermal heat transfer depth validation and input errors."""
-
-    with pytest.raises(AssertionError):
-        GeothermalConductiveHeatTransferLoss(dx=1, dy=1, depths=[0])
-
-    with pytest.raises(AssertionError):
-        GeothermalConductiveHeatTransferLoss(dx=1, dy=1, depths=[1000, 2000])
-
-    with pytest.raises(AssertionError):
-        GeothermalConductiveHeatTransferLoss(
-            dx=1, dy=1, depths=[0, 1000, 3000]
-        )
-
-    loss_obj = GeothermalConductiveHeatTransferLoss(
-        dx=1, dy=1, depths=[0, 1000, 2000]
-    )
-    with pytest.raises(ValueError):
-        loss_obj(np.zeros((2, 4, 6)), np.zeros((2, 4, 6)))
-
-
-def test_geothermal_heat_transfer_loss():
-    """Test heat transfer loss on synthetic data."""
-
-    depths = [0, 1, 2]
-    dx = dy = 1.0
-    loss_obj = GeothermalConductiveHeatTransferLoss(
-        dx=dx, dy=dy, depths=depths
-    )
-
-    batch = 2
-    s1 = 8
-    s2 = 8
-    x = np.arange(s1, dtype=np.float32)[np.newaxis, :, np.newaxis]
-    y = np.arange(s2, dtype=np.float32)[np.newaxis, np.newaxis, :]
-
-    k_const = 2.0
-    t_slope_z = 0.01
-    t_slope_x = 0.1
-    t_slope_y = 0.2
-    conductive_flux = k_const * (t_slope_x + t_slope_y + t_slope_z)
-    q_const = conductive_flux * 1000
-
-    tensors = []
-    for depth in depths:
-        temp = (
-            t_slope_x * x
-            + t_slope_y * y
-            + t_slope_z * depth
-            + np.zeros((batch, s1, s2), dtype=np.float32)
-        )
-        tensors.append(temp)
-
-        k = k_const + np.zeros((batch, s1, s2), dtype=np.float32)
-        tensors.append(k)
-
-    q = q_const + np.zeros((batch, s1, s2), dtype=np.float32)
-    tensors.append(q)
-
-    x_gen = np.stack(tensors, axis=-1)
-    x_true = np.zeros_like(x_gen)
-
-    loss_ref = loss_obj(x_true, x_gen).numpy()
-    assert np.isclose(loss_ref, 0.0, atol=1e-7)
-
-    x_gen_perturbed = x_gen.copy()
-    q_offset_idx = 2 * len(depths)
-    x_gen_perturbed[..., q_offset_idx] += 1000.0
-    loss_perturbed = loss_obj(x_true, x_gen_perturbed).numpy()
-
-    assert loss_perturbed > loss_ref
-
-
-def test_geothermal_heat_transfer_loss_errors():
-    """Test depth behavior and expected validation errors"""
-
-    dx = dy = 1.0
-    with pytest.raises(AssertionError):
-        GeothermalConductiveHeatTransferLoss(dx=dx, dy=dy, depths=[0])
-
-    with pytest.raises(AssertionError):
-        GeothermalConductiveHeatTransferLoss(dx=dx, dy=dy, depths=[1, 2])
-
-    with pytest.raises(AssertionError):
-        GeothermalConductiveHeatTransferLoss(dx=dx, dy=dy, depths=[1, 2, 5])
-
-    loss_obj = GeothermalConductiveHeatTransferLoss(
-        dx=dx, dy=dy, depths=[0, 1, 2, 3]
-    )
-    with pytest.raises(ValueError):
-        loss_obj(np.zeros((2, 4, 6)), np.zeros((2, 4, 6)))
 
 
 @pytest.mark.parametrize('shape', [(2, 4, 5), (2, 4, 5, 1), (2, 4, 5, 3)])

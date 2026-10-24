@@ -1,6 +1,7 @@
 """Content loss metrics for Sup3r"""
 
 from typing import ClassVar
+from warnings import warn
 
 import numpy as np
 import tensorflow as tf
@@ -905,8 +906,14 @@ class MaterialDerivativeLoss(Sup3rLoss):
         return self.LOSS_METRIC(x_true_div, x_gen_div)
 
 
-class GeothermalConductiveHeatTransferLoss(Sup3rLoss):
-    """Deviation from three-dimensional conductive heat transfer.
+class _GeothermalConductiveHeatTransferLoss(Sup3rLoss):
+    """DO NOT USE
+
+    This class implements equation 10 from Aljubran et al. 2024, but
+    that equation has known flaws. Therefore, this implementation,
+    though it follows the paper, should not be used.
+
+    Deviation from three-dimensional conductive heat transfer.
 
     This loss evaluates the conductive heat-transfer PDE residual described in
     [1] using predicted temperature, thermal conductivity, and surface heat
@@ -960,6 +967,18 @@ class GeothermalConductiveHeatTransferLoss(Sup3rLoss):
             Prefix used for thermal-conductivity channels in W/m-K. Expected
             feature names are ``<thermal_conductivity_prefix>_<depth>m``.
         """
+        warn(
+            '_GeothermalConductiveHeatTransferLoss is deprecated and should '
+            'not be used: its equation 10 formulation has known physical '
+            'flaws. Use GeothermalSurfaceHeatFluxLoss for surface Fourier-law '
+            'consistency and, where appropriate, '
+            'GeothermalNonnegativeHeatProductionLoss for compatibility with '
+            'nonnegative production. These are not equivalent replacements '
+            'for the original residual.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         self.t_inds, self.q_inds, self.k_inds = [], [], []
         self.dx, self.dy = dx, dy
 
